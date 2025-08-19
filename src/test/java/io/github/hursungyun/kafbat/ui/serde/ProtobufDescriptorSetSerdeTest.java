@@ -5,6 +5,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import io.kafbat.ui.serde.api.DeserializeResult;
 import io.kafbat.ui.serde.api.PropertyResolver;
+import io.kafbat.ui.serde.api.Serde;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
