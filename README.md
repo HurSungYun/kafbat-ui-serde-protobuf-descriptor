@@ -79,5 +79,5 @@ This will create a shadow jar in `build/libs/` that can be used with Kafbat UI.
 ## Limitations
 
 - Serialization is not currently implemented (deserialization only)
-- The serde tries all message types sequentially, which may impact performance with large descriptor sets
-- No schema inference - relies on trying different message types
+- Requires explicit topic-to-message-type mapping configuration
+- Only supports VALUE target (KEY deserialization not implemented)
