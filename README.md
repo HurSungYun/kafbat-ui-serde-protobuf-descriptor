@@ -6,8 +6,18 @@ A custom serializer/deserializer (serde) for Kafbat UI that allows deserializing
 
 - Load protobuf message definitions from a descriptor set file
 - Deserialize protobuf binary data to JSON format
-- Automatically tries all message types in the descriptor set to find the correct one
-- Includes metadata about the message type and file in the deserialization result
+
+## Generating Descriptor Set Files
+
+To generate a descriptor set file from your `.proto` files:
+
+```bash
+protoc --descriptor_set_out=descriptors.desc \
+       --include_imports \
+       your_proto_files.proto
+```
+
+The `--include_imports` flag ensures all dependencies are included in the descriptor set.
 
 ## Configuration
 
@@ -50,17 +60,6 @@ Build the serde using Gradle:
 
 This will create a shadow jar in `build/libs/` that can be used with Kafbat UI.
 
-## Generating Descriptor Set Files
-
-To generate a descriptor set file from your `.proto` files:
-
-```bash
-protoc --descriptor_set_out=descriptors.desc \
-       --include_imports \
-       your_proto_files.proto
-```
-
-The `--include_imports` flag ensures all dependencies are included in the descriptor set.
 
 ## How It Works
 
