@@ -2,6 +2,10 @@
 
 A custom serializer/deserializer (serde) for Kafbat UI that allows deserializing protobuf messages using a protobuf descriptor set file.
 
+## Demo
+
+![Demo](./demo.gif)
+
 ## Features
 
 - Load protobuf message definitions from a descriptor set file
