@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package test;
+
+import "user.proto";
+
+option java_package = "io.github.hursungyun.kafbat.ui.serde.test";
+option java_outer_classname = "OrderProtos";
+
+message Order {
+  int64 id = 1;
+  User user = 2;
+  repeated OrderItem items = 3;
+  double total_amount = 4;
+  OrderStatus status = 5;
+  int64 created_timestamp = 6;
+}
+
+message OrderItem {
+  string product_id = 1;
+  string product_name = 2;
+  int32 quantity = 3;
+  double unit_price = 4;
+}
+
+enum OrderStatus {
+  PENDING = 0;
+  CONFIRMED = 1;
+  SHIPPED = 2;
+  DELIVERED = 3;
+  CANCELLED = 4;
+}

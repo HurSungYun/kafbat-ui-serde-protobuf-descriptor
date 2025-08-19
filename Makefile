@@ -44,3 +44,13 @@ tasks: ## Show available Gradle tasks
 init: ## Initialize project (setup wrapper)
 	gradle wrapper
 	chmod +x gradlew
+
+proto: ## Generate protobuf descriptor sets
+	./gradlew generateTestDescriptors
+
+proto-compile: ## Compile proto files manually
+	protoc --descriptor_set_out=src/test/resources/test_descriptors.desc \
+		--include_imports \
+		--proto_path=src/test/proto \
+		src/test/proto/user.proto \
+		src/test/proto/order.proto

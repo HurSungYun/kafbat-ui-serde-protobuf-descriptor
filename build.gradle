@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.google.protobuf' version '0.9.4'
 }
 
 group = 'io.github.hursungyun.kafbat.ui.serde'
@@ -39,3 +40,30 @@ jar {
 }
 
 build.dependsOn shadowJar
+
+// Configure protobuf compilation
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.24.4'
+    }
+}
+
+// Task to generate descriptor set for tests
+task generateTestDescriptors(type: Exec) {
+    description = 'Generate protobuf descriptor set for tests'
+    group = 'build'
+    
+    inputs.files fileTree('src/test/proto')
+    outputs.file 'src/test/resources/test_descriptors.desc'
+    
+    commandLine 'protoc',
+            '--descriptor_set_out=src/test/resources/test_descriptors.desc',
+            '--include_imports',
+            '--proto_path=src/test/proto',
+            'src/test/proto/user.proto',
+            'src/test/proto/order.proto'
+}
+
+// Make sure descriptor set is generated before tests
+test.dependsOn generateTestDescriptors
+processTestResources.dependsOn generateTestDescriptors

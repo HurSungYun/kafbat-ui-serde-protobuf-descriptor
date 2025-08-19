@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package test;
+
+option java_package = "io.github.hursungyun.kafbat.ui.serde.test";
+option java_outer_classname = "UserProtos";
+
+message User {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+  repeated string tags = 4;
+  UserType type = 5;
+  Address address = 6;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string country = 3;
+  int32 zip_code = 4;
+}
+
+enum UserType {
+  UNKNOWN = 0;
+  ADMIN = 1;
+  REGULAR = 2;
+  GUEST = 3;
+}
