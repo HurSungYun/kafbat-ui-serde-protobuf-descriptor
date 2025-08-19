@@ -57,17 +57,16 @@ proto-compile: ## Compile proto files manually
 
 # Integration testing
 integration-test: ## Start integration test environment
-	cd docker && ./start-integration-test.sh
-
+	cd docker-compose && ./start-integration-test.sh
 
 integration-topics: ## Create test topics only
-	cd docker && docker-compose --profile setup run --rm topic-creator
+	cd docker-compose && docker-compose --profile setup run --rm topic-creator
 
 integration-test-message: ## Send a test protobuf message
-	cd docker && ./scripts/send_test_message.sh
+	cd docker-compose && ./scripts/send_test_message.sh
 
 integration-stop: ## Stop integration test environment
-	cd docker && docker-compose down
+	cd docker-compose && docker-compose down
 
 integration-clean: ## Clean integration test environment
-	cd docker && docker-compose down -v --remove-orphans
+	cd docker-compose && docker-compose down -v --remove-orphans
