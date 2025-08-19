@@ -1,6 +1,6 @@
 # Protobuf Descriptor Set Serde for Kafbat UI
 
-A custom serializer/deserializer (serde) for Kafbat UI that allows deserializing protobuf messages using a protobuf descriptor set file.
+A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafbat/kafka-ui) that allows deserializing protobuf messages using a protobuf descriptor set file.
 
 ## Demo
 
