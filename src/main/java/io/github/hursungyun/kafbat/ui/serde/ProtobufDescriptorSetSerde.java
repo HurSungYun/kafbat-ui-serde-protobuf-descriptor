@@ -98,9 +98,9 @@ public class ProtobufDescriptorSetSerde implements Serde {
         // Get default message type for all topics
         Optional<String> defaultMessageName = serdeProperties.getProperty("protobuf.message.name", String.class);
         
-        // Get topic-specific message mappings  
+        // Get topic-specific message mappings using simple key:value format
         Optional<Map<String, String>> topicMessageMappings = 
-                serdeProperties.getMapProperty("protobuf.message.name.by.topic", String.class, String.class);
+                serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class);
         
         // Build descriptor map for all message types
         Map<String, Descriptors.Descriptor> allDescriptors = new HashMap<>();

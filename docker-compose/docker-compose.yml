@@ -20,9 +20,9 @@ services:
       KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafka-ui-protobuf-descriptor-set-serde-1.0.0.jar
       KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_DESCRIPTOR_SET_FILE: /descriptors/test_descriptors.desc
-      # Topic-to-message-type mappings
-      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_MESSAGE_NAME_BY_TOPIC_USER-EVENTS: "test.User"
-      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_MESSAGE_NAME_BY_TOPIC_ORDER-EVENTS: "test.Order"
+      # Simple topic-to-message-type mappings (key: value format)
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_TOPIC_MESSAGE_MAP_USER-EVENTS: "test.User"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_TOPIC_MESSAGE_MAP_ORDER-EVENTS: "test.Order"
       # Default message type for other topics
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_MESSAGE_NAME: "test.User"
 

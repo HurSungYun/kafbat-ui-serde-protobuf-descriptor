@@ -23,6 +23,13 @@ kafka:
           filePath: /var/lib/path/to/your-serde.jar
           properties:
             protobuf.descriptor.set.file: /path/to/your/descriptors.desc
+            # Default message type for all topics
+            protobuf.message.name: "your.package.DefaultMessage"
+            # Topic-specific mappings (simple key: value format)
+            protobuf.topic.message.map:
+              user-events: "your.package.User"
+              order-events: "your.package.Order"
+              product-updates: "your.package.Product"
 ```
 
 ## Properties
@@ -30,6 +37,8 @@ kafka:
 | Property | Required | Description |
 |----------|----------|-------------|
 | `protobuf.descriptor.set.file` | Yes | Path to the protobuf descriptor set file |
+| `protobuf.message.name` | No | Default message type for all topics |
+| `protobuf.topic.message.map.*` | No | Topic-specific message type mapping (key: value format) |
 
 ## Building
 
