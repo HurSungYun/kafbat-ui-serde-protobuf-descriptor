@@ -59,9 +59,26 @@ class ProtobufDescriptorSetSerdeTest {
     }
 
     @Test
-    void shouldSupportDeserializationAndSerialization() {
+    void shouldSupportDeserializationButNotSerialization() {
+        // Before configuration - no descriptors loaded
+        assertThat(serde.canDeserialize("test-topic", null)).isFalse();
+        assertThat(serde.canSerialize("test-topic", null)).isFalse();
+    }
+
+    @Test
+    void shouldSupportDeserializationAfterConfiguration() throws Exception {
+        // Copy test descriptor set to temp directory
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        // Configure serde
+        when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
+                .thenReturn(Optional.of(descriptorFile.toString()));
+        
+        serde.configure(serdeProperties, clusterProperties, appProperties);
+        
+        // After configuration - descriptors loaded
         assertThat(serde.canDeserialize("test-topic", null)).isTrue();
-        assertThat(serde.canSerialize("test-topic", null)).isTrue();
+        assertThat(serde.canSerialize("test-topic", null)).isFalse(); // Still false - no serialization support
     }
 
     @Test

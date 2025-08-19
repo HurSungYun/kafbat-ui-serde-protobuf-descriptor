@@ -101,12 +101,16 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     @Override
     public boolean canDeserialize(String topic, Target target) {
-        return true;
+        // Check if we have any message types available in our descriptor set
+        return fileDescriptorMap != null && !fileDescriptorMap.isEmpty() &&
+               fileDescriptorMap.values().stream()
+                   .anyMatch(fd -> !fd.getMessageTypes().isEmpty());
     }
 
     @Override
     public boolean canSerialize(String topic, Target target) {
-        return true;
+        // This serde only supports deserialization
+        return false;
     }
 
     @Override
