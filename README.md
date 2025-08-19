@@ -4,7 +4,7 @@ A custom serializer/deserializer (serde) for Kafbat UI that allows deserializing
 
 ## Demo
 
-![Demo](./demo.gif)
+![Demo](demo.gif)
 
 ## Features
 
