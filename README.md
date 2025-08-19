@@ -10,6 +10,7 @@ A custom serializer/deserializer (serde) for Kafbat UI that allows deserializing
 
 - Load protobuf message definitions from a descriptor set file
 - Deserialize protobuf binary data to JSON format
+- Topic-to-message-type mapping for precise deserialization
 
 ## Generating Descriptor Set Files
 
@@ -21,7 +22,9 @@ protoc --descriptor_set_out=descriptors.desc \
        your_proto_files.proto
 ```
 
-The `--include_imports` flag ensures all dependencies are included in the descriptor set.
+**🚨 CRITICAL: The `--include_imports` flag is MANDATORY if your .proto files have any imports or dependencies**
+
+Without `--include_imports`, the descriptor set will be incomplete and the serde will fail to load imported message types and dependencies. This flag ensures ALL imported .proto files are bundled into the descriptor set.
 
 ## Configuration
 
