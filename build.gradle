@@ -14,12 +14,17 @@ java {
 
 repositories {
     mavenCentral()
+    maven {
+        url 'https://packages.confluent.io/maven/'
+    }
 }
 
 dependencies {
     implementation 'io.kafbat.ui:serde-api:1.0.0'
     implementation 'com.google.protobuf:protobuf-java:3.24.4'
     implementation 'com.google.protobuf:protobuf-java-util:3.24.4'
+    implementation 'io.confluent:kafka-schema-registry-client:7.4.0'
+    implementation 'io.confluent:kafka-protobuf-serializer:7.4.0'
     
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.assertj:assertj-core:3.24.2'
@@ -33,6 +38,11 @@ test {
 shadowJar {
     archiveClassifier.set('')
     mergeServiceFiles()
+    
+    // Exclude serde-api since it will be provided by kafbat UI
+    dependencies {
+        exclude(dependency('io.kafbat.ui:serde-api'))
+    }
 }
 
 jar {

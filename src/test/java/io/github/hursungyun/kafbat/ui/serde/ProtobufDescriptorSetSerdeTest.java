@@ -73,12 +73,16 @@ class ProtobufDescriptorSetSerdeTest {
         // Configure serde
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
+        when(serdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.of("test.User"));
+        when(serdeProperties.getMapProperty("protobuf.message.name.by.topic", String.class, String.class))
+                .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
         
-        // After configuration - descriptors loaded
-        assertThat(serde.canDeserialize("test-topic", null)).isTrue();
-        assertThat(serde.canSerialize("test-topic", null)).isFalse(); // Still false - no serialization support
+        // After configuration - descriptors loaded with default message type
+        assertThat(serde.canDeserialize("test-topic", Serde.Target.VALUE)).isTrue();
+        assertThat(serde.canSerialize("test-topic", Serde.Target.VALUE)).isFalse(); // Still false - no serialization support
     }
 
     @Test
@@ -86,9 +90,13 @@ class ProtobufDescriptorSetSerdeTest {
         // Copy test descriptor set to temp directory
         Path descriptorFile = copyDescriptorSetToTemp();
         
-        // Configure serde
+        // Configure serde with User message type
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
+        when(serdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.of("User"));
+        when(serdeProperties.getMapProperty("protobuf.message.name.by.topic", String.class, String.class))
+                .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
         
@@ -96,7 +104,7 @@ class ProtobufDescriptorSetSerdeTest {
         byte[] userBytes = createUserMessage();
         
         // Deserialize
-        DeserializeResult result = serde.deserializer("test-topic", null)
+        DeserializeResult result = serde.deserializer("test-topic", Serde.Target.VALUE)
                 .deserialize(null, userBytes);
         
         assertThat(result.getType()).isEqualTo(DeserializeResult.Type.JSON);

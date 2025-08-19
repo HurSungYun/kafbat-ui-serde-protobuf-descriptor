@@ -51,6 +51,11 @@ echo ""
 echo "🛑 To stop:"
 echo "   docker-compose down"
 
+# Create test topics
+echo ""
+echo "📋 Creating test topics..."
+docker-compose --profile setup run --rm topic-creator
+
 # Optional: Start producer if requested
 if [[ "$1" == "--with-producer" ]]; then
     echo ""
@@ -59,3 +64,14 @@ if [[ "$1" == "--with-producer" ]]; then
     echo "✅ Producer started! Messages will be generated every 30 seconds."
     echo "📝 View producer logs: docker-compose logs -f producer"
 fi
+
+# Send a test protobuf message
+echo ""
+echo "📤 Sending test protobuf message..."
+docker run --rm --network docker_default -v "$(pwd)/descriptors:/descriptors" -v "$(pwd)/scripts:/scripts" python:3.11-slim bash -c "
+    pip install protobuf==4.24.4 > /dev/null 2>&1 && 
+    cd /scripts && 
+    python test_protobuf_message.py 2>/dev/null
+" | docker exec -i kafka-protobuf-test kafka-console-producer --bootstrap-server kafka:29092 --topic user-events 2>/dev/null
+
+echo "✅ Test message sent to user-events topic!"
