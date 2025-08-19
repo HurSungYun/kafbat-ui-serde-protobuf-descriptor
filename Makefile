@@ -59,14 +59,12 @@ proto-compile: ## Compile proto files manually
 integration-test: ## Start integration test environment
 	cd docker && ./start-integration-test.sh
 
-integration-test-full: ## Start integration test with producer
-	cd docker && ./start-integration-test.sh --with-producer
 
 integration-topics: ## Create test topics only
 	cd docker && docker-compose --profile setup run --rm topic-creator
 
 integration-test-message: ## Send a test protobuf message
-	cd docker && docker run --rm --network docker_default -v "$$(pwd)/descriptors:/descriptors" -v "$$(pwd)/scripts:/scripts" python:3.11-slim bash -c "pip install protobuf==4.24.4 > /dev/null 2>&1 && cd /scripts && python test_protobuf_message.py 2>/dev/null" | docker exec -i kafka-protobuf-test kafka-console-producer --bootstrap-server kafka:29092 --topic user-events 2>/dev/null && echo "✅ Test message sent!"
+	cd docker && ./scripts/send_test_message.sh
 
 integration-stop: ## Stop integration test environment
 	cd docker && docker-compose down

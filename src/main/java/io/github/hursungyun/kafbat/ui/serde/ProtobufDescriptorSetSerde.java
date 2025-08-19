@@ -31,21 +31,15 @@ public class ProtobufDescriptorSetSerde implements Serde {
     public void configure(PropertyResolver serdeProperties,
                           PropertyResolver clusterProperties,
                           PropertyResolver appProperties) {
-        System.out.println("ProtobufDescriptorSetSerde.configure() called");
         this.protobufDescriptorSetFile = serdeProperties.getProperty("protobuf.descriptor.set.file", String.class)
                 .orElseThrow(() -> new IllegalArgumentException("protobuf.descriptor.set.file property is required"));
-        System.out.println("Descriptor file: " + protobufDescriptorSetFile);
 
         try {
             loadDescriptorSet();
             configureTopicMappings(serdeProperties);
             this.jsonPrinter = JsonFormat.printer().includingDefaultValueFields();
             this.jsonParser = JsonFormat.parser();
-            System.out.println("ProtobufDescriptorSetSerde configured successfully. Default descriptor: " + 
-                    (defaultMessageDescriptor != null ? defaultMessageDescriptor.getFullName() : "none"));
-            System.out.println("Topic mappings: " + topicToMessageDescriptorMap);
         } catch (Exception e) {
-            System.out.println("Failed to configure ProtobufDescriptorSetSerde: " + e.getMessage());
             throw new RuntimeException("Failed to load protobuf descriptor set from: " + protobufDescriptorSetFile, e);
         }
     }
@@ -178,9 +172,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     @Override
     public boolean canDeserialize(String topic, Target target) {
-        boolean canDeserialize = descriptorFor(topic, target).isPresent();
-        System.out.println("ProtobufDescriptorSetSerde.canDeserialize(" + topic + ", " + target + ") = " + canDeserialize);
-        return canDeserialize;
+        return descriptorFor(topic, target).isPresent();
     }
 
     @Override
@@ -198,12 +190,10 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     @Override
     public Deserializer deserializer(String topic, Target target) {
-        System.out.println("ProtobufDescriptorSetSerde.deserializer() called for topic: " + topic + ", target: " + target);
         Descriptors.Descriptor messageDescriptor = descriptorFor(topic, target).orElseThrow(
                 () -> new IllegalStateException("No descriptor found for topic: " + topic + ", target: " + target));
         
         return (recordHeaders, bytes) -> {
-            System.out.println("ProtobufDescriptorSetSerde deserializing " + bytes.length + " bytes with descriptor: " + messageDescriptor.getFullName());
             try {
                 DynamicMessage message = DynamicMessage.parseFrom(messageDescriptor, new ByteArrayInputStream(bytes));
                 byte[] jsonFromProto = ProtobufSchemaUtils.toJson(message);
@@ -218,7 +208,6 @@ public class ProtobufDescriptorSetSerde implements Serde {
                         metadata
                 );
             } catch (Exception e) {
-                System.out.println("Failed to deserialize with descriptor " + messageDescriptor.getFullName() + ": " + e.getMessage());
                 throw new RuntimeException("Failed to deserialize protobuf message for topic " + topic, e);
             }
         };

@@ -101,21 +101,3 @@ services:
     profiles:
       - setup
 
-  # Producer service to generate test data
-  producer:
-    build:
-      context: .
-      dockerfile: Dockerfile.producer
-    container_name: protobuf-producer
-    depends_on:
-      kafka:
-        condition: service_healthy
-    environment:
-      KAFKA_BROKERS: kafka:29092
-      DESCRIPTOR_FILE: /descriptors/test_descriptors.desc
-    volumes:
-      - ./descriptors:/descriptors
-      - ./scripts:/scripts
-    command: ["python", "/scripts/produce_messages.py"]
-    profiles:
-      - producer
