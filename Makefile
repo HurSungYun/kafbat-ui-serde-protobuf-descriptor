@@ -54,3 +54,16 @@ proto-compile: ## Compile proto files manually
 		--proto_path=src/test/proto \
 		src/test/proto/user.proto \
 		src/test/proto/order.proto
+
+# Integration testing
+integration-test: ## Start integration test environment
+	cd docker && ./start-integration-test.sh
+
+integration-test-full: ## Start integration test with producer
+	cd docker && ./start-integration-test.sh --with-producer
+
+integration-stop: ## Stop integration test environment
+	cd docker && docker-compose down
+
+integration-clean: ## Clean integration test environment
+	cd docker && docker-compose down -v --remove-orphans

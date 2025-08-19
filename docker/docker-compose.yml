@@ -1,0 +1,101 @@
+---
+version: '3.8'
+
+services:
+  kafka-ui:
+    container_name: kafka-ui-protobuf-test
+    image: ghcr.io/kafbat/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      # Kafka cluster configuration
+      KAFKA_CLUSTERS_0_NAME: ProtobufTestCluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+      # Protobuf Descriptor Set Serde configuration
+      KAFKA_CLUSTERS_0_SERDE_0_NAME: ProtobufDescriptorSetSerde
+      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/protobuf-descriptor-serde.jar
+      KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_DESCRIPTOR_SET_FILE: /descriptors/test_descriptors.desc
+
+      # Optional: Enable debug logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_PROVECTUS: DEBUG
+
+    volumes:
+      - ../build/libs:/serde
+      - ./descriptors:/descriptors
+      - ./data:/data
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    hostname: zookeeper
+    container_name: zookeeper-protobuf-test
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: kafka
+    container_name: kafka-protobuf-test
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_DELETE_TOPIC_ENABLE: 'true'
+    
+    healthcheck:
+      test: ["CMD", "bash", "-c", "kafka-broker-api-versions --bootstrap-server localhost:29092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Producer service to generate test data
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    container_name: protobuf-producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKERS: kafka:29092
+      DESCRIPTOR_FILE: /descriptors/test_descriptors.desc
+    volumes:
+      - ./descriptors:/descriptors
+      - ./scripts:/scripts
+    command: ["python", "/scripts/produce_messages.py"]
+    profiles:
+      - producer
