@@ -14,8 +14,12 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 
 ## Generating Descriptor Set Files
 
-To generate a descriptor set file from your `.proto` files:
+Using buf:
+```bash
+buf build -o descriptors.desc
+```
 
+Using protoc:
 ```bash
 protoc --descriptor_set_out=descriptors.desc \
        --include_imports \
@@ -23,8 +27,6 @@ protoc --descriptor_set_out=descriptors.desc \
 ```
 
 **🚨 CRITICAL: The `--include_imports` flag is MANDATORY if your .proto files have any imports or dependencies**
-
-Without `--include_imports`, the descriptor set will be incomplete and the serde will fail to load imported message types and dependencies. This flag ensures ALL imported .proto files are bundled into the descriptor set.
 
 ## Configuration
 
