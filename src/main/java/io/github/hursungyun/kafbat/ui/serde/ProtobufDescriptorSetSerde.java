@@ -123,8 +123,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 }
             }
         } else {
-            // If no default specified, use the first message type found
-            this.defaultMessageDescriptor = allDescriptors.values().stream().findFirst().orElse(null);
+            // If no default specified, don't set a default - let it try all types
+            this.defaultMessageDescriptor = null;
         }
         
         // Set topic-specific mappings
@@ -190,26 +190,60 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     @Override
     public Deserializer deserializer(String topic, Target target) {
-        Descriptors.Descriptor messageDescriptor = descriptorFor(topic, target).orElseThrow(
-                () -> new IllegalStateException("No descriptor found for topic: " + topic + ", target: " + target));
-        
         return (recordHeaders, bytes) -> {
-            try {
-                DynamicMessage message = DynamicMessage.parseFrom(messageDescriptor, new ByteArrayInputStream(bytes));
-                byte[] jsonFromProto = ProtobufSchemaUtils.toJson(message);
-                String jsonString = new String(jsonFromProto);
-                
-                Map<String, Object> metadata = new HashMap<>();
-                metadata.put("messageType", messageDescriptor.getFullName());
-                
-                return new DeserializeResult(
-                        jsonString,
-                        DeserializeResult.Type.JSON,
-                        metadata
-                );
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to deserialize protobuf message for topic " + topic, e);
+            // Try to deserialize with specific descriptor for topic first
+            Optional<Descriptors.Descriptor> specificDescriptor = descriptorFor(topic, target);
+            if (specificDescriptor.isPresent()) {
+                // If a specific descriptor is configured, use only that one
+                try {
+                    return deserializeWithDescriptor(specificDescriptor.get(), bytes);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to deserialize protobuf message for topic " + topic 
+                            + " with configured message type " + specificDescriptor.get().getFullName(), e);
+                }
             }
+            
+            // No specific descriptor configured, try all available message descriptors
+            for (Descriptors.FileDescriptor fileDescriptor : fileDescriptorMap.values()) {
+                for (Descriptors.Descriptor messageDescriptor : fileDescriptor.getMessageTypes()) {
+                    try {
+                        return deserializeWithDescriptor(messageDescriptor, bytes);
+                    } catch (Exception e) {
+                        // Continue to next message type
+                    }
+                }
+            }
+            
+            // If no message type could deserialize, return hex string
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : bytes) {
+                hexString.append(String.format("%02x", b & 0xff));
+            }
+            
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("error", "Could not deserialize with any known message type");
+            
+            return new DeserializeResult(
+                    hexString.toString(),
+                    DeserializeResult.Type.STRING,
+                    metadata
+            );
         };
+    }
+    
+    private DeserializeResult deserializeWithDescriptor(Descriptors.Descriptor messageDescriptor, byte[] bytes) throws Exception {
+        DynamicMessage message = DynamicMessage.parseFrom(messageDescriptor, new ByteArrayInputStream(bytes));
+        byte[] jsonFromProto = ProtobufSchemaUtils.toJson(message);
+        String jsonString = new String(jsonFromProto);
+        
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("messageType", messageDescriptor.getFullName());
+        metadata.put("file", messageDescriptor.getFile().getName());
+        
+        return new DeserializeResult(
+                jsonString,
+                DeserializeResult.Type.JSON,
+                metadata
+        );
     }
 }

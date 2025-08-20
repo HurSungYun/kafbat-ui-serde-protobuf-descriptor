@@ -76,7 +76,7 @@ class ProtobufDescriptorSetSerdeTest {
                 .thenReturn(Optional.of(descriptorFile.toString()));
         when(serdeProperties.getProperty("protobuf.message.name", String.class))
                 .thenReturn(Optional.of("test.User"));
-        when(serdeProperties.getMapProperty("protobuf.message.name.by.topic", String.class, String.class))
+        when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
                 .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
@@ -96,7 +96,7 @@ class ProtobufDescriptorSetSerdeTest {
                 .thenReturn(Optional.of(descriptorFile.toString()));
         when(serdeProperties.getProperty("protobuf.message.name", String.class))
                 .thenReturn(Optional.of("User"));
-        when(serdeProperties.getMapProperty("protobuf.message.name.by.topic", String.class, String.class))
+        when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
                 .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
@@ -126,17 +126,25 @@ class ProtobufDescriptorSetSerdeTest {
         // Copy test descriptor set to temp directory
         Path descriptorFile = copyDescriptorSetToTemp();
         
-        // Configure serde
-        when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
-                .thenReturn(Optional.of(descriptorFile.toString()));
+        // Create fresh serde instance for this test
+        ProtobufDescriptorSetSerde freshSerde = new ProtobufDescriptorSetSerde();
+        PropertyResolver freshSerdeProperties = Mockito.mock(PropertyResolver.class);
         
-        serde.configure(serdeProperties, clusterProperties, appProperties);
+        // Configure serde - no specific message type, should try all types
+        when(freshSerdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
+                .thenReturn(Optional.of(descriptorFile.toString()));
+        when(freshSerdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.empty()); // No default message type
+        when(freshSerdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
+                .thenReturn(Optional.empty());
+        
+        freshSerde.configure(freshSerdeProperties, clusterProperties, appProperties);
         
         // Create an Order message with nested User
         byte[] orderBytes = createOrderMessage();
         
         // Deserialize
-        DeserializeResult result = serde.deserializer("test-topic", null)
+        DeserializeResult result = freshSerde.deserializer("test-topic", null)
                 .deserialize(null, orderBytes);
         
         assertThat(result.getType()).isEqualTo(DeserializeResult.Type.JSON);
@@ -157,17 +165,25 @@ class ProtobufDescriptorSetSerdeTest {
         // Copy test descriptor set to temp directory
         Path descriptorFile = copyDescriptorSetToTemp();
         
-        // Configure serde
-        when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
-                .thenReturn(Optional.of(descriptorFile.toString()));
+        // Create fresh serde instance for this test
+        ProtobufDescriptorSetSerde freshSerde = new ProtobufDescriptorSetSerde();
+        PropertyResolver freshSerdeProperties = Mockito.mock(PropertyResolver.class);
         
-        serde.configure(serdeProperties, clusterProperties, appProperties);
+        // Configure serde - no specific message type, should try all types
+        when(freshSerdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
+                .thenReturn(Optional.of(descriptorFile.toString()));
+        when(freshSerdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.empty()); // No default message type
+        when(freshSerdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
+                .thenReturn(Optional.empty());
+        
+        freshSerde.configure(freshSerdeProperties, clusterProperties, appProperties);
         
         // Use random bytes that won't match any message type
         byte[] randomBytes = {0x01, 0x02, 0x03, 0x04, (byte) 0xFF};
         
         // Deserialize
-        DeserializeResult result = serde.deserializer("test-topic", null)
+        DeserializeResult result = freshSerde.deserializer("test-topic", null)
                 .deserialize(null, randomBytes);
         
         assertThat(result.getType()).isEqualTo(DeserializeResult.Type.STRING);
