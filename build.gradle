@@ -67,24 +67,18 @@ protobuf {
     protoc {
         artifact = 'com.google.protobuf:protoc:3.24.4'
     }
+    // Generate descriptor set for test protos using the plugin-managed protoc
+    generateProtoTasks {
+        all().each { task ->
+            if (task.sourceSet.name == 'test') {
+                task.generateDescriptorSet = true
+                task.descriptorSetOptions.includeImports = true
+                // Place the descriptor on the test runtime classpath
+                task.descriptorSetOptions.path = "$buildDir/resources/test/test_descriptors.desc"
+            }
+        }
+    }
 }
 
-// Task to generate descriptor set for tests
-task generateTestDescriptors(type: Exec) {
-    description = 'Generate protobuf descriptor set for tests'
-    group = 'build'
-    
-    inputs.files fileTree('src/test/proto')
-    outputs.file 'src/test/resources/test_descriptors.desc'
-    
-    commandLine 'protoc',
-            '--descriptor_set_out=src/test/resources/test_descriptors.desc',
-            '--include_imports',
-            '--proto_path=src/test/proto',
-            'src/test/proto/user.proto',
-            'src/test/proto/order.proto'
-}
-
-// Make sure descriptor set is generated before tests
-test.dependsOn generateTestDescriptors
-processTestResources.dependsOn generateTestDescriptors
+// Ensure descriptor generation runs before tests
+test.dependsOn tasks.named('generateTestProto')
