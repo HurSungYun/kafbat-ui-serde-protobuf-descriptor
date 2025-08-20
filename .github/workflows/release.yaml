@@ -1,0 +1,87 @@
+name: build-and-release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build (shadow jar)
+        run: ./gradlew --no-daemon clean build
+
+      - name: Locate artifact
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar_path="$(ls build/libs/*-all.jar 2>/dev/null | head -n1 || true)"
+          if [ -z "$jar_path" ]; then
+            jar_path="$(ls build/libs/*.jar | head -n1)"
+          fi
+          echo "jar_path=$jar_path" >> "$GITHUB_OUTPUT"
+          echo "Found: $jar_path"
+
+      - name: Compute SHA256
+        run: |
+          mkdir -p dist
+          cp "${{ steps.artifact.outputs.jar_path }}" dist/
+          (cd dist && sha256sum "$(basename "${{ steps.artifact.outputs.jar_path }}")" > SHASUMS256.txt)
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Normalize filenames with tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          JAR="$(ls dist/*.jar | head -n1)"
+          BASENAME="$(basename "$JAR" .jar)"
+          mv "$JAR" "dist/${BASENAME}-${TAG}.jar"
+          sha256sum "dist/${BASENAME}-${TAG}.jar" > dist/SHASUMS256.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') }}
+          files: |
+            dist/*.jar
+            dist/SHASUMS256.txt
