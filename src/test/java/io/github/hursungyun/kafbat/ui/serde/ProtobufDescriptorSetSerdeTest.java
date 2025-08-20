@@ -126,9 +126,13 @@ class ProtobufDescriptorSetSerdeTest {
         // Copy test descriptor set to temp directory
         Path descriptorFile = copyDescriptorSetToTemp();
         
-        // Configure serde
+        // Configure serde with specific Order message type
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
+        when(serdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.of("Order")); // Specify Order message type
+        when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
+                .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
         
@@ -153,29 +157,28 @@ class ProtobufDescriptorSetSerdeTest {
     }
 
     @Test
-    void shouldReturnHexStringWhenNoMessageTypeMatches() throws Exception {
+    void shouldThrowExceptionWhenNoMessageTypeConfigured() throws Exception {
         // Copy test descriptor set to temp directory
         Path descriptorFile = copyDescriptorSetToTemp();
         
-        // Configure serde
+        // Configure serde without specifying message type
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
+        when(serdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.empty()); // No message type specified
+        when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
+                .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
         
-        // Use random bytes that won't match any message type
+        // Use random bytes
         byte[] randomBytes = {0x01, 0x02, 0x03, 0x04, (byte) 0xFF};
         
-        // Deserialize
-        DeserializeResult result = serde.deserializer("test-topic", null)
-                .deserialize(null, randomBytes);
-        
-        assertThat(result.getType()).isEqualTo(DeserializeResult.Type.STRING);
-        assertThat(result.getResult()).isEqualTo("01020304ff");
-        
-        Map<String, Object> metadata = result.getAdditionalProperties();
-        assertThat(metadata).containsKey("error");
-        assertThat(metadata.get("error")).isEqualTo("Could not deserialize with any known message type");
+        // Should throw exception when no message type is configured
+        assertThatThrownBy(() -> serde.deserializer("test-topic", null)
+                .deserialize(null, randomBytes))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No message type configured for topic: test-topic");
     }
 
     @Test

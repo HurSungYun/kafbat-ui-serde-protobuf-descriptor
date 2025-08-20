@@ -123,7 +123,6 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 }
             }
         } else {
-            // If no default specified, don't set a default - let it try all types
             this.defaultMessageDescriptor = null;
         }
         
@@ -203,31 +202,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 }
             }
             
-            // No specific descriptor configured, try all available message descriptors
-            for (Descriptors.FileDescriptor fileDescriptor : fileDescriptorMap.values()) {
-                for (Descriptors.Descriptor messageDescriptor : fileDescriptor.getMessageTypes()) {
-                    try {
-                        return deserializeWithDescriptor(messageDescriptor, bytes);
-                    } catch (Exception e) {
-                        // Continue to next message type
-                    }
-                }
-            }
-            
-            // If no message type could deserialize, return hex string
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : bytes) {
-                hexString.append(String.format("%02x", b & 0xff));
-            }
-            
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("error", "Could not deserialize with any known message type");
-            
-            return new DeserializeResult(
-                    hexString.toString(),
-                    DeserializeResult.Type.STRING,
-                    metadata
-            );
+            // No specific descriptor configured - cannot deserialize
+            throw new IllegalStateException("No message type configured for topic: " + topic + ", target: " + target);
         };
     }
     
