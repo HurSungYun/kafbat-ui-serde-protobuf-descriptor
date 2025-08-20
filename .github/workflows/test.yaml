@@ -10,6 +10,11 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      checks: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,13 +50,21 @@ jobs:
             build/reports/tests/test/
 
       - name: Publish test results
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: dorny/test-reporter@v1
         with:
           name: Unit Test Results
           path: 'build/test-results/test/TEST-*.xml'
           reporter: java-junit
           fail-on-error: false
+
+      - name: Test Report for PR
+        if: always() && github.event_name == 'pull_request'
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: 'build/test-results/test/TEST-*.xml'
+          check_name: 'Unit Test Results'
+          fail_on_failure: false
 
   code-coverage:
     runs-on: ubuntu-latest
