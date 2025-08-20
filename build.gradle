@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'com.google.protobuf' version '0.9.4'
+    id 'jacoco'
 }
 
 group = 'io.github.hursungyun.kafbat.ui.serde'
@@ -29,10 +30,20 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.assertj:assertj-core:3.24.2'
     testImplementation 'org.mockito:mockito-core:5.5.0'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
 }
 
 test {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 shadowJar {

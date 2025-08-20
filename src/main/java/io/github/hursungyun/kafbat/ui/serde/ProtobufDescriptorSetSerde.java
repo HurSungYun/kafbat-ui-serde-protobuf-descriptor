@@ -123,8 +123,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 }
             }
         } else {
-            // If no default specified, use the first message type found
-            this.defaultMessageDescriptor = allDescriptors.values().stream().findFirst().orElse(null);
+            this.defaultMessageDescriptor = null;
         }
         
         // Set topic-specific mappings
@@ -190,26 +189,37 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     @Override
     public Deserializer deserializer(String topic, Target target) {
-        Descriptors.Descriptor messageDescriptor = descriptorFor(topic, target).orElseThrow(
-                () -> new IllegalStateException("No descriptor found for topic: " + topic + ", target: " + target));
-        
         return (recordHeaders, bytes) -> {
-            try {
-                DynamicMessage message = DynamicMessage.parseFrom(messageDescriptor, new ByteArrayInputStream(bytes));
-                byte[] jsonFromProto = ProtobufSchemaUtils.toJson(message);
-                String jsonString = new String(jsonFromProto);
-                
-                Map<String, Object> metadata = new HashMap<>();
-                metadata.put("messageType", messageDescriptor.getFullName());
-                
-                return new DeserializeResult(
-                        jsonString,
-                        DeserializeResult.Type.JSON,
-                        metadata
-                );
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to deserialize protobuf message for topic " + topic, e);
+            // Try to deserialize with specific descriptor for topic first
+            Optional<Descriptors.Descriptor> specificDescriptor = descriptorFor(topic, target);
+            if (specificDescriptor.isPresent()) {
+                // If a specific descriptor is configured, use only that one
+                try {
+                    return deserializeWithDescriptor(specificDescriptor.get(), bytes);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to deserialize protobuf message for topic " + topic 
+                            + " with configured message type " + specificDescriptor.get().getFullName(), e);
+                }
             }
+            
+            // No specific descriptor configured - cannot deserialize
+            throw new IllegalStateException("No message type configured for topic: " + topic + ", target: " + target);
         };
+    }
+    
+    private DeserializeResult deserializeWithDescriptor(Descriptors.Descriptor messageDescriptor, byte[] bytes) throws Exception {
+        DynamicMessage message = DynamicMessage.parseFrom(messageDescriptor, new ByteArrayInputStream(bytes));
+        byte[] jsonFromProto = ProtobufSchemaUtils.toJson(message);
+        String jsonString = new String(jsonFromProto);
+        
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("messageType", messageDescriptor.getFullName());
+        metadata.put("file", messageDescriptor.getFile().getName());
+        
+        return new DeserializeResult(
+                jsonString,
+                DeserializeResult.Type.JSON,
+                metadata
+        );
     }
 }
