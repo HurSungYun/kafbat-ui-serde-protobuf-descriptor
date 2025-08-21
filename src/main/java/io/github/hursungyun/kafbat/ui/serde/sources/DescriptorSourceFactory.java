@@ -1,4 +1,4 @@
-package io.github.hursungyun.kafbat.ui.serde;
+package io.github.hursungyun.kafbat.ui.serde.sources;
 
 import io.kafbat.ui.serde.api.PropertyResolver;
 import io.minio.MinioClient;
@@ -47,7 +47,7 @@ public class DescriptorSourceFactory {
         boolean secure = properties.getProperty("protobuf.s3.secure", Boolean.class).orElse(true);
         Duration refreshInterval = properties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class)
                 .map(Duration::ofSeconds)
-                .orElse(Duration.ofMinutes(5)); // Default 5 minutes
+                .orElse(Duration.ofHours(1)); // Default 1 hour
         
         // Build MinIO client
         MinioClient.Builder clientBuilder = MinioClient.builder()

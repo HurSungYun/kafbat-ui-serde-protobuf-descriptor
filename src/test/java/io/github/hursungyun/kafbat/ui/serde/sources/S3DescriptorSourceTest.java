@@ -1,4 +1,4 @@
-package io.github.hursungyun.kafbat.ui.serde;
+package io.github.hursungyun.kafbat.ui.serde.sources;
 
 import com.google.protobuf.DescriptorProtos;
 import io.minio.BucketExistsArgs;

@@ -1,4 +1,4 @@
-package io.github.hursungyun.kafbat.ui.serde;
+package io.github.hursungyun.kafbat.ui.serde.sources;
 
 import io.kafbat.ui.serde.api.PropertyResolver;
 import org.junit.jupiter.api.BeforeEach;

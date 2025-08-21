@@ -9,6 +9,9 @@ import io.kafbat.ui.serde.api.DeserializeResult;
 import io.kafbat.ui.serde.api.PropertyResolver;
 import io.kafbat.ui.serde.api.SchemaDescription;
 import io.kafbat.ui.serde.api.Serde;
+import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSource;
+import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSourceFactory;
+import io.github.hursungyun.kafbat.ui.serde.sources.S3DescriptorSource;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
