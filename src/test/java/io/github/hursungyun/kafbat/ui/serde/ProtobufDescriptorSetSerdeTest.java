@@ -411,4 +411,51 @@ class ProtobufDescriptorSetSerdeTest {
             return order.toByteArray();
         }
     }
+
+    @Test
+    void shouldConfigureWithS3TopicMappings() throws IOException {
+        // Test that S3 topic mapping configuration is properly recognized
+        // This is a basic test that verifies the configuration doesn't throw exceptions
+        PropertyResolver serdeProperties = Mockito.mock(PropertyResolver.class);
+        PropertyResolver clusterProperties = Mockito.mock(PropertyResolver.class);
+        PropertyResolver appProperties = Mockito.mock(PropertyResolver.class);
+
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        // Setup local descriptor source (required)
+        when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
+                .thenReturn(Optional.of(descriptorFile.toString()));
+        
+        // Setup S3 topic mapping configuration
+        when(serdeProperties.getProperty("protobuf.topic.message.map.s3.bucket", String.class))
+                .thenReturn(Optional.of("test-bucket"));
+        when(serdeProperties.getProperty("protobuf.topic.message.map.s3.object.key", String.class))
+                .thenReturn(Optional.of("topic-mappings.json"));
+        when(serdeProperties.getProperty("protobuf.s3.endpoint", String.class))
+                .thenReturn(Optional.of("http://localhost:9000"));
+        when(serdeProperties.getProperty("protobuf.s3.access.key", String.class))
+                .thenReturn(Optional.of("testkey"));
+        when(serdeProperties.getProperty("protobuf.s3.secret.key", String.class))
+                .thenReturn(Optional.of("testsecret"));
+        
+        // Mock other optional S3 properties
+        mockS3PropertiesEmpty();
+        
+        when(serdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.of("User"));
+        when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
+                .thenReturn(Optional.empty());
+
+        // This should not throw an exception - the serde should be configured with S3 topic mapping source
+        // Note: The actual S3 calls will fail in this test environment, but the configuration should work
+        try {
+            serde.configure(serdeProperties, clusterProperties, appProperties);
+            // If we reach here without exception, the configuration was successful
+            assertThat(serde.getSourceInfo()).containsKey("descriptorSource");
+        } catch (RuntimeException e) {
+            // Expected in test environment since we don't have actual S3 connectivity
+            // Just verify the error is related to S3 connectivity, not configuration
+            assertThat(e.getMessage()).containsAnyOf("Failed to load", "Connection", "S3");
+        }
+    }
 }

@@ -12,9 +12,12 @@ import io.kafbat.ui.serde.api.Serde;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSource;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSourceFactory;
 import io.github.hursungyun.kafbat.ui.serde.sources.S3DescriptorSource;
+import io.github.hursungyun.kafbat.ui.serde.sources.S3TopicMappingSource;
+import io.minio.MinioClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -25,6 +28,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
     private Map<String, Descriptors.Descriptor> topicToMessageDescriptorMap = new HashMap<>();
     private Descriptors.Descriptor defaultMessageDescriptor;
     private DescriptorSource descriptorSource;
+    private S3TopicMappingSource topicMappingSource;
+    private PropertyResolver serdeProperties;
     private JsonFormat.Printer jsonPrinter;
     private JsonFormat.Parser jsonParser;
 
@@ -33,7 +38,9 @@ public class ProtobufDescriptorSetSerde implements Serde {
                           PropertyResolver clusterProperties,
                           PropertyResolver appProperties) {
         try {
+            this.serdeProperties = serdeProperties;
             this.descriptorSource = DescriptorSourceFactory.create(serdeProperties);
+            this.topicMappingSource = createTopicMappingSource(serdeProperties);
             loadDescriptorSet();
             configureTopicMappings(serdeProperties);
             this.jsonPrinter = JsonFormat.printer().includingDefaultValueFields();
@@ -92,13 +99,89 @@ public class ProtobufDescriptorSetSerde implements Serde {
         this.fileDescriptorMap = tempDescriptors;
     }
 
+    private S3TopicMappingSource createTopicMappingSource(PropertyResolver properties) {
+        // Check for S3 topic mapping configuration
+        Optional<String> s3Bucket = properties.getProperty("protobuf.topic.message.map.s3.bucket", String.class);
+        Optional<String> s3ObjectKey = properties.getProperty("protobuf.topic.message.map.s3.object.key", String.class);
+        
+        if (s3Bucket.isPresent() && s3ObjectKey.isPresent()) {
+            // Use existing S3 configuration from descriptor source
+            if (descriptorSource instanceof S3DescriptorSource) {
+                // Reuse the MinIO client from descriptor source - this requires exposing the client
+                // For now, we'll create a new client with the same configuration
+                return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
+            } else {
+                // Check if we have S3 credentials in properties
+                Optional<String> s3Endpoint = properties.getProperty("protobuf.s3.endpoint", String.class);
+                if (s3Endpoint.isPresent()) {
+                    return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    private S3TopicMappingSource createS3TopicMappingSourceFromProperties(PropertyResolver properties, String bucket, String objectKey) {
+        String endpoint = properties.getProperty("protobuf.s3.endpoint", String.class)
+                .orElseThrow(() -> new IllegalArgumentException("protobuf.s3.endpoint is required for S3 topic mapping source"));
+        String accessKey = properties.getProperty("protobuf.s3.access.key", String.class)
+                .orElseThrow(() -> new IllegalArgumentException("protobuf.s3.access.key is required for S3 topic mapping source"));
+        String secretKey = properties.getProperty("protobuf.s3.secret.key", String.class)
+                .orElseThrow(() -> new IllegalArgumentException("protobuf.s3.secret.key is required for S3 topic mapping source"));
+        
+        // Optional configuration
+        String region = properties.getProperty("protobuf.s3.region", String.class).orElse(null);
+        boolean secure = properties.getProperty("protobuf.s3.secure", Boolean.class).orElse(true);
+        Duration refreshInterval = properties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class)
+                .map(Duration::ofSeconds)
+                .orElse(Duration.ofHours(1));
+        
+        // Build MinIO client
+        MinioClient.Builder clientBuilder = MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials(accessKey, secretKey);
+        
+        if (region != null) {
+            clientBuilder.region(region);
+        }
+        
+        // Configure SSL
+        if (!secure) {
+            if (endpoint.startsWith("https://")) {
+                endpoint = endpoint.replace("https://", "http://");
+                clientBuilder.endpoint(endpoint);
+            }
+        }
+        
+        MinioClient minioClient = clientBuilder.build();
+        
+        return new S3TopicMappingSource(minioClient, bucket, objectKey, refreshInterval);
+    }
+
     private void configureTopicMappings(PropertyResolver serdeProperties) {
         // Get default message type for all topics
         Optional<String> defaultMessageName = serdeProperties.getProperty("protobuf.message.name", String.class);
         
-        // Get topic-specific message mappings using simple key:value format
-        Optional<Map<String, String>> topicMessageMappings = 
+        // Load topic mappings from S3 first, then override with local properties
+        Map<String, String> combinedTopicMappings = new HashMap<>();
+        
+        // Load from S3 if available
+        if (topicMappingSource != null) {
+            try {
+                Map<String, String> s3TopicMappings = topicMappingSource.loadTopicMappings();
+                combinedTopicMappings.putAll(s3TopicMappings);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to load topic mappings from S3: " + topicMappingSource.getDescription(), e);
+            }
+        }
+        
+        // Get topic-specific message mappings from local configuration (overrides S3)
+        Optional<Map<String, String>> localTopicMessageMappings = 
                 serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class);
+        if (localTopicMessageMappings.isPresent()) {
+            combinedTopicMappings.putAll(localTopicMessageMappings.get());
+        }
         
         // Build descriptor map for all message types
         Map<String, Descriptors.Descriptor> allDescriptors = new HashMap<>();
@@ -124,9 +207,9 @@ public class ProtobufDescriptorSetSerde implements Serde {
             this.defaultMessageDescriptor = null;
         }
         
-        // Set topic-specific mappings
-        if (topicMessageMappings.isPresent()) {
-            for (Map.Entry<String, String> entry : topicMessageMappings.get().entrySet()) {
+        // Set topic-specific mappings (from combined S3 + local mappings)
+        if (!combinedTopicMappings.isEmpty()) {
+            for (Map.Entry<String, String> entry : combinedTopicMappings.entrySet()) {
                 String topic = entry.getKey();
                 String messageName = entry.getValue();
                 Descriptors.Descriptor descriptor = allDescriptors.get(messageName);
@@ -223,10 +306,13 @@ public class ProtobufDescriptorSetSerde implements Serde {
     }
     
     /**
-     * Refresh the descriptor set from source if it supports refresh
+     * Refresh the descriptor set and topic mappings from source if they support refresh
      * @return true if refresh was attempted, false if not supported
      */
     public boolean refreshDescriptors() {
+        boolean refreshed = false;
+        
+        // Refresh descriptors
         if (descriptorSource != null && descriptorSource.supportsRefresh()) {
             try {
                 // Force invalidation if S3 source
@@ -236,25 +322,46 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 
                 // Reload descriptors
                 loadDescriptorSet();
-                return true;
+                refreshed = true;
             } catch (Exception e) {
                 throw new RuntimeException("Failed to refresh descriptor set from: " + descriptorSource.getDescription(), e);
             }
         }
-        return false;
+        
+        // Refresh topic mappings
+        if (topicMappingSource != null) {
+            try {
+                // Force invalidation of S3 topic mapping cache
+                topicMappingSource.invalidateCache();
+                
+                // Reconfigure topic mappings (will reload from S3)
+                configureTopicMappings(serdeProperties);
+                refreshed = true;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to refresh topic mappings from: " + topicMappingSource.getDescription(), e);
+            }
+        }
+        
+        return refreshed;
     }
     
     /**
-     * Get information about the descriptor source
-     * @return Source description and last modified time if available
+     * Get information about the descriptor source and topic mapping source
+     * @return Source descriptions and last modified times if available
      */
     public Map<String, Object> getSourceInfo() {
         Map<String, Object> info = new HashMap<>();
         if (descriptorSource != null) {
-            info.put("source", descriptorSource.getDescription());
-            info.put("supportsRefresh", descriptorSource.supportsRefresh());
+            info.put("descriptorSource", descriptorSource.getDescription());
+            info.put("descriptorSupportsRefresh", descriptorSource.supportsRefresh());
             descriptorSource.getLastModified().ifPresent(lastModified -> 
-                info.put("lastModified", lastModified.toString()));
+                info.put("descriptorLastModified", lastModified.toString()));
+        }
+        if (topicMappingSource != null) {
+            info.put("topicMappingSource", topicMappingSource.getDescription());
+            info.put("topicMappingSupportsRefresh", topicMappingSource.supportsRefresh());
+            topicMappingSource.getLastModified().ifPresent(lastModified -> 
+                info.put("topicMappingLastModified", lastModified.toString()));
         }
         return info;
     }

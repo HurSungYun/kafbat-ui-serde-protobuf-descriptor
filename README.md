@@ -79,10 +79,30 @@ kafka:
             
             # Message Configuration
             protobuf.message.name: "your.package.DefaultMessage"
+            
+            # S3 Topic Mapping (optional)
+            protobuf.topic.message.map.s3.bucket: "my-protobuf-descriptors"
+            protobuf.topic.message.map.s3.object.key: "topic-mappings.json"
+            
+            # Local Topic Mapping (overrides S3 config)
             protobuf.topic.message.map:
               user-events: "your.package.User"
               order-events: "your.package.Order"
 ```
+
+#### S3 Topic Mapping JSON Format
+
+When using S3 topic mappings, create a JSON file with topic-to-message-type mappings:
+
+```json
+{
+  "user-events": "your.package.User",
+  "order-events": "your.package.Order",
+  "payment-events": "your.package.Payment"
+}
+```
+
+**Note**: Local `protobuf.topic.message.map` configuration always overrides S3 topic mappings.
 
 ## Configuration Properties
 
@@ -104,7 +124,9 @@ kafka:
 | Property | Default | Description |
 |----------|---------|-------------|
 | `protobuf.message.name` | - | Default message type for all topics |
-| `protobuf.topic.message.map.*` | - | Topic-specific message type mapping |
+| `protobuf.topic.message.map.*` | - | Topic-specific message type mapping (overrides S3 config) |
+| `protobuf.topic.message.map.s3.bucket` | - | S3 bucket containing topic mapping JSON file |
+| `protobuf.topic.message.map.s3.object.key` | - | S3 object key for topic mapping JSON file |
 | `protobuf.s3.region` | - | S3 region (if required by your provider) |
 | `protobuf.s3.secure` | `true` | Use HTTPS (set to false for HTTP endpoints) |
 | `protobuf.s3.refresh.interval.seconds` | `300` | How often to check for descriptor updates |
