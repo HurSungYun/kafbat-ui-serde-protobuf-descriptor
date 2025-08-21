@@ -27,15 +27,38 @@ dependencies {
     implementation 'io.confluent:kafka-schema-registry-client:7.4.0'
     implementation 'io.confluent:kafka-protobuf-serializer:7.4.0'
     
+    // MinIO S3 client for S3 support
+    implementation 'io.minio:minio:8.5.7'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.assertj:assertj-core:3.24.2'
     testImplementation 'org.mockito:mockito-core:5.5.0'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
+    testImplementation 'org.testcontainers:minio:1.19.3'
 }
 
 test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
     finalizedBy jacocoTestReport
+}
+
+// Add separate task for integration tests
+task integrationTest(type: Test) {
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+    description = 'Runs integration tests that require Docker/TestContainers'
+    group = 'verification'
+    
+    // Only run if Docker is available or explicitly enabled
+    onlyIf {
+        System.getenv('ENABLE_INTEGRATION_TESTS') == 'true' || 
+        project.hasProperty('enableIntegrationTests')
+    }
 }
 
 jacocoTestReport {

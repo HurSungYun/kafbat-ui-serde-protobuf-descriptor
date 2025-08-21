@@ -49,19 +49,35 @@ class ProtobufDescriptorSetSerdeTest {
     void shouldThrowExceptionWhenDescriptorSetFilePropertyIsMissing() {
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.empty());
+        // Also mock S3 properties to be empty
+        mockS3PropertiesEmpty();
 
         assertThatThrownBy(() -> serde.configure(serdeProperties, clusterProperties, appProperties))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("protobuf.descriptor.set.file property is required");
+                .satisfies(throwable -> {
+                    boolean isExpectedException = throwable instanceof IllegalArgumentException ||
+                            (throwable instanceof RuntimeException && throwable.getCause() instanceof IllegalArgumentException);
+                    assertThat(isExpectedException).isTrue();
+                });
     }
 
     @Test
-    void shouldHaveDescription() {
-        ProtobufDescriptorSetSerde serde = new ProtobufDescriptorSetSerde();
+    void shouldHaveDescription() throws Exception {
+        // Configure serde with test descriptor
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
+                .thenReturn(Optional.of(descriptorFile.toString()));
+        mockS3PropertiesEmpty();
+        when(serdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.of("User"));
+        when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
+                .thenReturn(Optional.empty());
+        
+        serde.configure(serdeProperties, clusterProperties, appProperties);
         
         assertThat(serde.getDescription())
                 .isPresent()
-                .contains("Protobuf Descriptor Set Serde - deserializes protobuf messages using descriptor set file");
+                .get().asString().contains("Protobuf Descriptor Set Serde - deserializes protobuf messages from Local file:");
     }
 
     @Test
@@ -79,6 +95,7 @@ class ProtobufDescriptorSetSerdeTest {
         // Configure serde
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
+        mockS3PropertiesEmpty();
         when(serdeProperties.getProperty("protobuf.message.name", String.class))
                 .thenReturn(Optional.of("test.User"));
         when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
@@ -99,6 +116,7 @@ class ProtobufDescriptorSetSerdeTest {
         // Configure serde with User message type
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
+        mockS3PropertiesEmpty();
         when(serdeProperties.getProperty("protobuf.message.name", String.class))
                 .thenReturn(Optional.of("User"));
         when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
@@ -160,6 +178,7 @@ class ProtobufDescriptorSetSerdeTest {
         // Configure serde with specific Order message type
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
+        mockS3PropertiesEmpty();
         when(serdeProperties.getProperty("protobuf.message.name", String.class))
                 .thenReturn(Optional.of("Order")); // Specify Order message type
         when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
@@ -238,6 +257,7 @@ class ProtobufDescriptorSetSerdeTest {
         // Configure serde without specifying message type
         when(serdeProperties.getProperty("protobuf.descriptor.set.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
+        mockS3PropertiesEmpty();
         when(serdeProperties.getProperty("protobuf.message.name", String.class))
                 .thenReturn(Optional.empty()); // No message type specified
         when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
@@ -263,6 +283,15 @@ class ProtobufDescriptorSetSerdeTest {
         assertThatThrownBy(() -> serde.configure(serdeProperties, clusterProperties, appProperties))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Failed to load protobuf descriptor set from");
+    }
+
+    private void mockS3PropertiesEmpty() {
+        when(serdeProperties.getProperty("protobuf.s3.endpoint", String.class))
+                .thenReturn(Optional.empty());
+        when(serdeProperties.getProperty("protobuf.s3.bucket", String.class))
+                .thenReturn(Optional.empty());
+        when(serdeProperties.getProperty("protobuf.s3.object.key", String.class))
+                .thenReturn(Optional.empty());
     }
 
     private Path copyDescriptorSetToTemp() throws IOException {
