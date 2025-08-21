@@ -40,8 +40,25 @@ dependencies {
 }
 
 test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
     finalizedBy jacocoTestReport
+}
+
+// Add separate task for integration tests
+task integrationTest(type: Test) {
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+    description = 'Runs integration tests that require Docker/TestContainers'
+    group = 'verification'
+    
+    // Only run if Docker is available or explicitly enabled
+    onlyIf {
+        System.getenv('ENABLE_INTEGRATION_TESTS') == 'true' || 
+        project.hasProperty('enableIntegrationTests')
+    }
 }
 
 jacocoTestReport {

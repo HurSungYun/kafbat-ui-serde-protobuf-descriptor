@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 @Testcontainers
+@IntegrationTest
 class ProtobufDescriptorSetSerdeS3IntegrationTest {
 
     @Container

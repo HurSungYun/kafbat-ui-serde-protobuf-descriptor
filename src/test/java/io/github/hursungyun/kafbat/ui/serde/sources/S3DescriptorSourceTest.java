@@ -1,6 +1,7 @@
 package io.github.hursungyun.kafbat.ui.serde.sources;
 
 import com.google.protobuf.DescriptorProtos;
+import io.github.hursungyun.kafbat.ui.serde.IntegrationTest;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
+@IntegrationTest
 class S3DescriptorSourceTest {
 
     @Container

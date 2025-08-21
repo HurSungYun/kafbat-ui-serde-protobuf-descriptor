@@ -139,6 +139,36 @@ Build the serde using Gradle:
 
 This will create a shadow jar in `build/libs/` that can be used with Kafbat UI.
 
+## Testing
+
+The project includes both unit tests and integration tests:
+
+### Unit Tests
+
+Run unit tests (fast, no external dependencies):
+
+```bash
+./gradlew test
+```
+
+### Integration Tests
+
+Integration tests use TestContainers to test S3 functionality with a real MinIO container. These tests require Docker to be running:
+
+```bash
+# Run integration tests (requires Docker)
+ENABLE_INTEGRATION_TESTS=true ./gradlew integrationTest
+
+# Or run all tests including integration tests
+ENABLE_INTEGRATION_TESTS=true ./gradlew build integrationTest
+```
+
+### CI/CD Considerations
+
+- **Unit tests** run on all platforms (Linux, macOS, Windows)
+- **Integration tests** are skipped by default on macOS in CI due to Docker availability limitations
+- To enable integration tests in CI, set the environment variable `ENABLE_INTEGRATION_TESTS=true`
+
 
 ## How It Works
 
