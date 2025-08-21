@@ -11,9 +11,7 @@ import io.kafbat.ui.serde.api.SchemaDescription;
 import io.kafbat.ui.serde.api.Serde;
 
 import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -23,7 +21,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
     private Map<String, Descriptors.FileDescriptor> fileDescriptorMap;
     private Map<String, Descriptors.Descriptor> topicToMessageDescriptorMap = new HashMap<>();
     private Descriptors.Descriptor defaultMessageDescriptor;
-    private String protobufDescriptorSetFile;
+    private DescriptorSource descriptorSource;
     private JsonFormat.Printer jsonPrinter;
     private JsonFormat.Parser jsonParser;
 
@@ -31,67 +29,64 @@ public class ProtobufDescriptorSetSerde implements Serde {
     public void configure(PropertyResolver serdeProperties,
                           PropertyResolver clusterProperties,
                           PropertyResolver appProperties) {
-        this.protobufDescriptorSetFile = serdeProperties.getProperty("protobuf.descriptor.set.file", String.class)
-                .orElseThrow(() -> new IllegalArgumentException("protobuf.descriptor.set.file property is required"));
-
         try {
+            this.descriptorSource = DescriptorSourceFactory.create(serdeProperties);
             loadDescriptorSet();
             configureTopicMappings(serdeProperties);
             this.jsonPrinter = JsonFormat.printer().includingDefaultValueFields();
             this.jsonParser = JsonFormat.parser();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load protobuf descriptor set from: " + protobufDescriptorSetFile, e);
+            String sourceDescription = descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
+            throw new RuntimeException("Failed to load protobuf descriptor set from: " + sourceDescription, e);
         }
     }
 
     private void loadDescriptorSet() throws IOException, Descriptors.DescriptorValidationException {
-        try (FileInputStream fis = new FileInputStream(protobufDescriptorSetFile)) {
-            DescriptorProtos.FileDescriptorSet descriptorSet = DescriptorProtos.FileDescriptorSet.parseFrom(fis);
-            
-            fileDescriptorMap = new HashMap<>();
-            Map<String, Descriptors.FileDescriptor> tempDescriptors = new HashMap<>();
-            
-            // First pass: create all FileDescriptors without dependencies
-            for (DescriptorProtos.FileDescriptorProto fileDescriptorProto : descriptorSet.getFileList()) {
-                if (fileDescriptorProto.getDependencyCount() == 0) {
-                    Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(
-                            fileDescriptorProto, new Descriptors.FileDescriptor[0]);
-                    tempDescriptors.put(fileDescriptorProto.getName(), fileDescriptor);
-                }
+        DescriptorProtos.FileDescriptorSet descriptorSet = descriptorSource.loadDescriptorSet();
+        
+        fileDescriptorMap = new HashMap<>();
+        Map<String, Descriptors.FileDescriptor> tempDescriptors = new HashMap<>();
+        
+        // First pass: create all FileDescriptors without dependencies
+        for (DescriptorProtos.FileDescriptorProto fileDescriptorProto : descriptorSet.getFileList()) {
+            if (fileDescriptorProto.getDependencyCount() == 0) {
+                Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(
+                        fileDescriptorProto, new Descriptors.FileDescriptor[0]);
+                tempDescriptors.put(fileDescriptorProto.getName(), fileDescriptor);
             }
-            
-            // Second pass: create FileDescriptors with dependencies
-            boolean progress = true;
-            while (progress && tempDescriptors.size() < descriptorSet.getFileCount()) {
-                progress = false;
-                for (DescriptorProtos.FileDescriptorProto fileDescriptorProto : descriptorSet.getFileList()) {
-                    if (tempDescriptors.containsKey(fileDescriptorProto.getName())) {
-                        continue;
-                    }
-                    
-                    // Check if all dependencies are resolved
-                    boolean allDepsResolved = true;
-                    Descriptors.FileDescriptor[] dependencies = new Descriptors.FileDescriptor[fileDescriptorProto.getDependencyCount()];
-                    for (int i = 0; i < fileDescriptorProto.getDependencyCount(); i++) {
-                        String depName = fileDescriptorProto.getDependency(i);
-                        if (!tempDescriptors.containsKey(depName)) {
-                            allDepsResolved = false;
-                            break;
-                        }
-                        dependencies[i] = tempDescriptors.get(depName);
-                    }
-                    
-                    if (allDepsResolved) {
-                        Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(
-                                fileDescriptorProto, dependencies);
-                        tempDescriptors.put(fileDescriptorProto.getName(), fileDescriptor);
-                        progress = true;
-                    }
-                }
-            }
-            
-            this.fileDescriptorMap = tempDescriptors;
         }
+        
+        // Second pass: create FileDescriptors with dependencies
+        boolean progress = true;
+        while (progress && tempDescriptors.size() < descriptorSet.getFileCount()) {
+            progress = false;
+            for (DescriptorProtos.FileDescriptorProto fileDescriptorProto : descriptorSet.getFileList()) {
+                if (tempDescriptors.containsKey(fileDescriptorProto.getName())) {
+                    continue;
+                }
+                
+                // Check if all dependencies are resolved
+                boolean allDepsResolved = true;
+                Descriptors.FileDescriptor[] dependencies = new Descriptors.FileDescriptor[fileDescriptorProto.getDependencyCount()];
+                for (int i = 0; i < fileDescriptorProto.getDependencyCount(); i++) {
+                    String depName = fileDescriptorProto.getDependency(i);
+                    if (!tempDescriptors.containsKey(depName)) {
+                        allDepsResolved = false;
+                        break;
+                    }
+                    dependencies[i] = tempDescriptors.get(depName);
+                }
+                
+                if (allDepsResolved) {
+                    Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(
+                            fileDescriptorProto, dependencies);
+                    tempDescriptors.put(fileDescriptorProto.getName(), fileDescriptor);
+                    progress = true;
+                }
+            }
+        }
+        
+        this.fileDescriptorMap = tempDescriptors;
     }
 
     private void configureTopicMappings(PropertyResolver serdeProperties) {
@@ -161,7 +156,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     @Override
     public Optional<String> getDescription() {
-        return Optional.of("Protobuf Descriptor Set Serde - deserializes protobuf messages using descriptor set file");
+        String sourceDescription = descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
+        return Optional.of("Protobuf Descriptor Set Serde - deserializes protobuf messages from " + sourceDescription);
     }
 
     @Override
@@ -221,5 +217,42 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 DeserializeResult.Type.JSON,
                 metadata
         );
+    }
+    
+    /**
+     * Refresh the descriptor set from source if it supports refresh
+     * @return true if refresh was attempted, false if not supported
+     */
+    public boolean refreshDescriptors() {
+        if (descriptorSource != null && descriptorSource.supportsRefresh()) {
+            try {
+                // Force invalidation if S3 source
+                if (descriptorSource instanceof S3DescriptorSource) {
+                    ((S3DescriptorSource) descriptorSource).invalidateCache();
+                }
+                
+                // Reload descriptors
+                loadDescriptorSet();
+                return true;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to refresh descriptor set from: " + descriptorSource.getDescription(), e);
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Get information about the descriptor source
+     * @return Source description and last modified time if available
+     */
+    public Map<String, Object> getSourceInfo() {
+        Map<String, Object> info = new HashMap<>();
+        if (descriptorSource != null) {
+            info.put("source", descriptorSource.getDescription());
+            info.put("supportsRefresh", descriptorSource.supportsRefresh());
+            descriptorSource.getLastModified().ifPresent(lastModified -> 
+                info.put("lastModified", lastModified.toString()));
+        }
+        return info;
     }
 }
