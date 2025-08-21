@@ -8,12 +8,10 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 
 ## Features
 
-- **📁 Multiple Sources**: Load protobuf descriptors from local files or S3-compatible storage
-- **🔄 Auto-Refresh**: Automatic cache refresh for S3 sources with configurable intervals
-- **⚡ Smart Caching**: ETag-based caching to minimize S3 API calls
-- **🎯 Topic Mapping**: Configure specific message types for different topics
-- **☁️ Cloud Ready**: Full AWS S3 and MinIO support
-- **🏢 Enterprise**: Suitable for production environments with centralized schema management
+- **🔍 Protobuf Message Visualization**: Transform binary protobuf messages into readable JSON in Kafbat UI
+- **📋 Descriptor Set Support**: Use compiled protobuf descriptor sets (`.desc` files) for schema definitions
+- **🎯 Topic-Specific Mapping**: Configure different protobuf message types for different Kafka topics
+- **📁 Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, MinIO, GCS)
 
 ## Quick Start
 
@@ -110,49 +108,6 @@ kafka:
 | `protobuf.s3.region` | - | S3 region (if required by your provider) |
 | `protobuf.s3.secure` | `true` | Use HTTPS (set to false for HTTP endpoints) |
 | `protobuf.s3.refresh.interval.seconds` | `300` | How often to check for descriptor updates |
-
-## S3 Storage Examples
-
-### AWS S3
-
-```bash
-# Upload descriptor to AWS S3
-aws s3 cp descriptors.desc s3://my-protobuf-descriptors/prod/v1.2.3/descriptors.desc
-```
-
-### MinIO Self-hosted
-
-```bash
-# Configure MinIO client
-mc alias set myminio http://minio.company.com:9000 ACCESS_KEY SECRET_KEY
-
-# Upload descriptor
-mc cp descriptors.desc myminio/protobuf-descriptors/descriptors.desc
-```
-
-### Google Cloud Storage
-
-```bash
-# Upload to GCS (S3-compatible API)
-gsutil cp descriptors.desc gs://my-gcs-bucket/protobuf/descriptors.desc
-```
-
-## How It Works
-
-1. **📥 Loading**: Serde loads descriptors from local file or S3 during initialization
-2. **💾 Caching**: S3 sources use intelligent caching with ETag validation
-3. **🔄 Refresh**: Automatic periodic refresh for S3 sources (configurable interval)
-4. **🎯 Mapping**: Uses topic-specific or default message types for deserialization
-5. **🔧 Processing**: Converts protobuf binary data to readable JSON format
-6. **📊 Metadata**: Provides message type and source information
-
-## Use Cases
-
-- **🏢 Enterprise**: Centralized protobuf schema management across multiple Kafka UI instances
-- **🔄 DevOps**: Automated schema updates without service restarts
-- **☁️ Cloud Native**: S3-based schema distribution for containerized environments
-- **🔧 Development**: Easy protobuf message inspection and debugging
-- **📈 Scaling**: Support for multiple environments with different schema versions
 
 ## Support
 
