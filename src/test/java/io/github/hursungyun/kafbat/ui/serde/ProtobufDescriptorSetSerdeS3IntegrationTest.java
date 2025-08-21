@@ -121,9 +121,9 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
         
         // Get source info before refresh
         Map<String, Object> sourceInfo = serde.getSourceInfo();
-        assertThat(sourceInfo).containsKey("source");
-        assertThat(sourceInfo.get("source").toString()).contains("S3:");
-        assertThat(sourceInfo).containsEntry("supportsRefresh", true);
+        assertThat(sourceInfo).containsKey("descriptorSource");
+        assertThat(sourceInfo.get("descriptorSource").toString()).contains("S3:");
+        assertThat(sourceInfo).containsEntry("descriptorSupportsRefresh", true);
         
         // Refresh descriptors
         boolean refreshed = serde.refreshDescriptors();
@@ -198,6 +198,144 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
                 .thenReturn(Optional.empty());
 
         serde.configure(serdeProperties, clusterProperties, appProperties);
+    }
+
+    @Test
+    void shouldLoadTopicMappingsFromS3() throws Exception {
+        // First upload topic mappings JSON to S3
+        String topicMappingsJson = "{\n" +
+                "  \"user-events\": \"User\",\n" +
+                "  \"order-events\": \"Order\"\n" +
+                "}";
+        
+        uploadTopicMappingsToS3(topicMappingsJson);
+
+        // Configure serde with both S3 descriptor and S3 topic mappings
+        configureSerdeForS3WithTopicMappings();
+        
+        // Verify that source info includes both descriptor and topic mapping sources
+        Map<String, Object> sourceInfo = serde.getSourceInfo();
+        assertThat(sourceInfo).containsKey("descriptorSource");
+        assertThat(sourceInfo).containsKey("topicMappingSource");
+        assertThat(sourceInfo.get("topicMappingSource").toString())
+                .contains("S3 Topic Mappings: s3://test-descriptors/topic-mappings.json");
+
+        // Test deserialization with S3 topic mappings
+        byte[] userBytes = createUserMessage();
+        DeserializeResult result = serde.deserializer("user-events", null)
+                .deserialize(null, userBytes);
+
+        assertThat(result.getType()).isEqualTo(DeserializeResult.Type.JSON);
+        assertThat(result.getResult()).contains("\"name\"");
+    }
+
+    @Test
+    void shouldOverrideS3TopicMappingsWithLocalConfig() throws Exception {
+        // Upload topic mappings JSON to S3
+        String topicMappingsJson = "{\n" +
+                "  \"user-events\": \"Order\",\n" +  // This should be overridden
+                "  \"payment-events\": \"User\"\n" +
+                "}";
+        
+        uploadTopicMappingsToS3(topicMappingsJson);
+
+        // Configure serde with S3 source but override user-events locally
+        when(serdeProperties.getProperty("protobuf.s3.endpoint", String.class))
+                .thenReturn(Optional.of(String.format("http://localhost:%d", minioContainer.getMappedPort(9000))));
+        when(serdeProperties.getProperty("protobuf.s3.bucket", String.class))
+                .thenReturn(Optional.of(BUCKET_NAME));
+        when(serdeProperties.getProperty("protobuf.s3.object.key", String.class))
+                .thenReturn(Optional.of(OBJECT_KEY));
+        when(serdeProperties.getProperty("protobuf.s3.access.key", String.class))
+                .thenReturn(Optional.of("testuser"));
+        when(serdeProperties.getProperty("protobuf.s3.secret.key", String.class))
+                .thenReturn(Optional.of("testpassword"));
+
+        // S3 topic mapping configuration
+        when(serdeProperties.getProperty("protobuf.topic.message.map.s3.bucket", String.class))
+                .thenReturn(Optional.of(BUCKET_NAME));
+        when(serdeProperties.getProperty("protobuf.topic.message.map.s3.object.key", String.class))
+                .thenReturn(Optional.of("topic-mappings.json"));
+
+        // Local override: user-events should map to User instead of Order
+        when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
+                .thenReturn(Optional.of(Map.of("user-events", "User")));
+
+        when(serdeProperties.getProperty("protobuf.s3.region", String.class))
+                .thenReturn(Optional.empty());
+        when(serdeProperties.getProperty("protobuf.s3.secure", Boolean.class))
+                .thenReturn(Optional.of(false));
+        when(serdeProperties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class))
+                .thenReturn(Optional.of(60L));
+
+        when(serdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.empty());
+
+        serde.configure(serdeProperties, clusterProperties, appProperties);
+
+        // Verify both mappings work:
+        // user-events should use User (local override), payment-events should use User (from S3)
+        byte[] userBytes = createUserMessage();
+        
+        // user-events should deserialize as User (local override)
+        DeserializeResult userResult = serde.deserializer("user-events", null)
+                .deserialize(null, userBytes);
+        assertThat(userResult.getType()).isEqualTo(DeserializeResult.Type.JSON);
+        
+        // payment-events should deserialize as User (from S3)
+        DeserializeResult paymentResult = serde.deserializer("payment-events", null)
+                .deserialize(null, userBytes);
+        assertThat(paymentResult.getType()).isEqualTo(DeserializeResult.Type.JSON);
+    }
+
+    private void configureSerdeForS3WithTopicMappings() throws Exception {
+        // Basic S3 descriptor configuration
+        when(serdeProperties.getProperty("protobuf.s3.endpoint", String.class))
+                .thenReturn(Optional.of(String.format("http://localhost:%d", minioContainer.getMappedPort(9000))));
+        when(serdeProperties.getProperty("protobuf.s3.bucket", String.class))
+                .thenReturn(Optional.of(BUCKET_NAME));
+        when(serdeProperties.getProperty("protobuf.s3.object.key", String.class))
+                .thenReturn(Optional.of(OBJECT_KEY));
+        when(serdeProperties.getProperty("protobuf.s3.access.key", String.class))
+                .thenReturn(Optional.of("testuser"));
+        when(serdeProperties.getProperty("protobuf.s3.secret.key", String.class))
+                .thenReturn(Optional.of("testpassword"));
+
+        // S3 topic mapping configuration
+        when(serdeProperties.getProperty("protobuf.topic.message.map.s3.bucket", String.class))
+                .thenReturn(Optional.of(BUCKET_NAME));
+        when(serdeProperties.getProperty("protobuf.topic.message.map.s3.object.key", String.class))
+                .thenReturn(Optional.of("topic-mappings.json"));
+
+        when(serdeProperties.getProperty("protobuf.s3.region", String.class))
+                .thenReturn(Optional.empty());
+        when(serdeProperties.getProperty("protobuf.s3.secure", Boolean.class))
+                .thenReturn(Optional.of(false));
+        when(serdeProperties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class))
+                .thenReturn(Optional.of(60L));
+
+        when(serdeProperties.getProperty("protobuf.message.name", String.class))
+                .thenReturn(Optional.empty());
+        when(serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class))
+                .thenReturn(Optional.empty());
+
+        serde.configure(serdeProperties, clusterProperties, appProperties);
+    }
+
+    private void uploadTopicMappingsToS3(String jsonContent) throws Exception {
+        MinioClient minioClient = MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials("testuser", "testpassword")
+                .build();
+                
+        minioClient.putObject(
+                PutObjectArgs.builder()
+                        .bucket(BUCKET_NAME)
+                        .object("topic-mappings.json")
+                        .stream(new ByteArrayInputStream(jsonContent.getBytes()),
+                                jsonContent.getBytes().length, -1)
+                        .contentType("application/json")
+                        .build());
     }
 
     private byte[] createUserMessage() throws Exception {
