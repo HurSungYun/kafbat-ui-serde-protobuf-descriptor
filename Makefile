@@ -70,3 +70,26 @@ integration-stop: ## Stop integration test environment
 
 integration-clean: ## Clean integration test environment
 	cd docker-compose && docker-compose down -v --remove-orphans
+
+# S3 Integration testing
+s3-test: ## Start S3 integration test with MinIO
+	cd docker-compose && ./test-s3-integration.sh
+
+s3-test-start: ## Start S3 test environment (interactive)
+	cd docker-compose && ./start-s3-integration-test.sh
+
+s3-test-stop: ## Stop S3 test environment
+	cd docker-compose && docker-compose --profile s3-test down
+
+s3-test-clean: ## Clean S3 test environment completely
+	cd docker-compose && docker-compose --profile s3-test down -v --remove-orphans
+
+s3-test-logs: ## Show S3 test logs
+	cd docker-compose && docker-compose --profile s3-test logs -f kafka-ui-s3
+
+minio-logs: ## Show MinIO logs
+	cd docker-compose && docker-compose logs -f minio
+
+integration-test-full: ## Run both local and S3 integration tests
+	$(MAKE) integration-test
+	$(MAKE) s3-test

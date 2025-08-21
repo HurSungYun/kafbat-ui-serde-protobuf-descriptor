@@ -1,5 +1,4 @@
 ---
-version: '3.8'
 
 services:
   kafka-ui:
@@ -17,7 +16,7 @@ services:
 
       # Protobuf Descriptor Set Serde configuration
       KAFKA_CLUSTERS_0_SERDE_0_NAME: ProtobufDescriptorSetSerde
-      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafka-ui-protobuf-descriptor-set-serde-1.0.0.jar
+      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-1.0.0.jar
       KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_DESCRIPTOR_SET_FILE: /descriptors/test_descriptors.desc
       # Simple topic-to-message-type mappings (key: value format)
@@ -86,6 +85,46 @@ services:
       retries: 5
       start_period: 30s
 
+  # MinIO S3-compatible storage for descriptor files
+  minio:
+    image: minio/minio:latest
+    container_name: minio-protobuf-test
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # MinIO setup service - creates bucket and uploads descriptor
+  minio-setup:
+    image: minio/mc:latest
+    container_name: minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./descriptors:/descriptors
+    entrypoint: /bin/sh
+    command: 
+      - -c
+      - |
+        mc alias set minio http://minio:9000 minioadmin minioadmin123
+        mc mb minio/protobuf-descriptors || true
+        mc cp /descriptors/test_descriptors.desc minio/protobuf-descriptors/
+        mc ls minio/protobuf-descriptors/
+        echo 'MinIO setup complete: descriptor uploaded to s3://protobuf-descriptors/test_descriptors.desc'
+    profiles:
+      - setup
+
   # Topic creation service
   topic-creator:
     image: confluentinc/cp-kafka:7.4.0
@@ -100,4 +139,58 @@ services:
     command: ["bash", "/scripts/create_topics.sh"]
     profiles:
       - setup
+
+  # Kafka UI with S3 descriptor source
+  kafka-ui-s3:
+    container_name: kafka-ui-protobuf-s3-test
+    image: ghcr.io/kafbat/kafka-ui:latest
+    ports:
+      - "8081:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      # Kafka cluster configuration
+      KAFKA_CLUSTERS_0_NAME: ProtobufS3TestCluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+      # Protobuf Descriptor Set Serde with S3 configuration
+      KAFKA_CLUSTERS_0_SERDE_0_NAME: ProtobufDescriptorSetSerdeS3
+      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-1.0.0.jar
+      KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
+      
+      # S3 Configuration using MinIO
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_S3_ENDPOINT: "http://minio:9000"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_S3_BUCKET: "protobuf-descriptors"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_S3_OBJECT_KEY: "test_descriptors.desc"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_S3_ACCESS_KEY: "minioadmin"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_S3_SECRET_KEY: "minioadmin123"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_S3_SECURE: "false"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_S3_REFRESH_INTERVAL_SECONDS: "30"
+      
+      # Message type configuration (same as local file)
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_TOPIC_MESSAGE_MAP_USER-EVENTS: "test.User"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_TOPIC_MESSAGE_MAP_ORDER-EVENTS: "test.Order"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_PROTOBUF_MESSAGE_NAME: "test.User"
+
+      # Optional: Enable debug logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_IO_GITHUB_HURSUNGYUN: DEBUG
+
+    volumes:
+      - ../build/libs:/serde
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    profiles:
+      - s3-test
+
+volumes:
+  minio_data:
 
