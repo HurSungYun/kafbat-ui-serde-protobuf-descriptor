@@ -9,6 +9,8 @@ import io.kafbat.ui.serde.api.DeserializeResult;
 import io.kafbat.ui.serde.api.PropertyResolver;
 import io.kafbat.ui.serde.api.SchemaDescription;
 import io.kafbat.ui.serde.api.Serde;
+import io.github.hursungyun.kafbat.ui.serde.auth.MinioClientFactory;
+import io.github.hursungyun.kafbat.ui.serde.auth.S3Configuration;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSource;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSourceFactory;
 import io.github.hursungyun.kafbat.ui.serde.sources.S3DescriptorSource;
@@ -123,44 +125,13 @@ public class ProtobufDescriptorSetSerde implements Serde {
     }
 
     private S3TopicMappingSource createS3TopicMappingSourceFromProperties(PropertyResolver properties, String bucket, String objectKey) {
-        String endpoint = properties.getProperty("protobuf.s3.endpoint", String.class)
-                .orElseThrow(() -> new IllegalArgumentException("protobuf.s3.endpoint is required for S3 topic mapping source"));
+        // Create S3 configuration from properties (reusing same S3 config as descriptors)
+        S3Configuration config = S3Configuration.fromProperties(properties);
 
-        // Get S3 credentials (optional for IAM role-based authentication)
-        Optional<String> accessKey = properties.getProperty("protobuf.s3.access.key", String.class);
-        Optional<String> secretKey = properties.getProperty("protobuf.s3.secret.key", String.class);
+        // Create MinIO client using the factory
+        MinioClient minioClient = MinioClientFactory.create(config);
 
-        // Optional configuration
-        String region = properties.getProperty("protobuf.s3.region", String.class).orElse(null);
-        boolean secure = properties.getProperty("protobuf.s3.secure", Boolean.class).orElse(true);
-        String stsEndpoint = properties.getProperty("protobuf.s3.sts.endpoint", String.class)
-                .orElse("https://sts.amazonaws.com");
-        Duration refreshInterval = properties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class)
-                .map(Duration::ofSeconds)
-                .orElse(Duration.ofHours(1));
-
-        // Build MinIO client
-        MinioClient.Builder clientBuilder = MinioClient.builder()
-                .endpoint(endpoint);
-
-        // Configure credentials using centralized logic
-        DescriptorSourceFactory.configureMinioCredentials(clientBuilder, accessKey, secretKey, stsEndpoint);
-
-        if (region != null) {
-            clientBuilder.region(region);
-        }
-
-        // Configure SSL
-        if (!secure) {
-            if (endpoint.startsWith("https://")) {
-                endpoint = endpoint.replace("https://", "http://");
-                clientBuilder.endpoint(endpoint);
-            }
-        }
-
-        MinioClient minioClient = clientBuilder.build();
-
-        return new S3TopicMappingSource(minioClient, bucket, objectKey, refreshInterval);
+        return new S3TopicMappingSource(minioClient, bucket, objectKey, config.getRefreshInterval());
     }
 
     private void configureTopicMappings(PropertyResolver serdeProperties) {
