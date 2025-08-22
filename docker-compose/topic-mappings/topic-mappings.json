@@ -1,0 +1,6 @@
+{
+  "user-events": "test.User",
+  "order-events": "test.Order",
+  "payment-events": "test.User",
+  "notification-events": "test.User"
+}
