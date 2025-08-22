@@ -122,6 +122,7 @@ kafka:
             protobuf.s3.bucket: "my-protobuf-descriptors"
             protobuf.s3.object.key: "descriptors/my-app.desc"
             protobuf.s3.region: "ap-northeast-2"
+            protobuf.s3.sts.endpoint: "https://sts.amazonaws.com"  # Optional: STS endpoint for IRSA
             protobuf.s3.refresh.interval.seconds: 6000
             
             # Topic mappings from local configuration
@@ -143,6 +144,7 @@ kafka:
 | `protobuf.s3.object.key` | S3 object key (path) to the descriptor set file |
 | `protobuf.s3.access.key` | S3 access key (optional - uses IAM roles if not provided) |
 | `protobuf.s3.secret.key` | S3 secret key (optional - uses IAM roles if not provided) |
+| `protobuf.s3.sts.endpoint` | STS endpoint for IRSA (default: https://sts.amazonaws.com) |
 
 ### Optional Properties
 
@@ -154,6 +156,7 @@ kafka:
 | `protobuf.topic.message.map.s3.object.key` | - | S3 object key for topic mapping JSON file |
 | `protobuf.s3.region` | - | S3 region (if required by your provider) |
 | `protobuf.s3.secure` | `true` | Use HTTPS (set to false for HTTP endpoints) |
+| `protobuf.s3.sts.endpoint` | `https://sts.amazonaws.com` | STS endpoint for IRSA authentication |
 | `protobuf.s3.refresh.interval.seconds` | `300` | How often to check for descriptor updates |
 
 ## Support
