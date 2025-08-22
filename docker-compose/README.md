@@ -57,6 +57,29 @@ Tests descriptor loading from MinIO S3-compatible storage with caching and refre
    - Kafka UI (S3): http://localhost:8081
    - MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
 
+### S3 Topic Mapping Mode (MinIO)
+
+Tests S3-based topic mapping configuration with local property overrides.
+
+1. **Run S3 topic mapping integration test**:
+   ```bash
+   ./test-s3-topic-mapping-integration.sh
+   ```
+   
+   Or start the environment interactively:
+   ```bash
+   ./start-s3-topic-mapping-test.sh
+   ```
+
+2. **Access services**:
+   - Kafka UI (S3 Topic Mapping): http://localhost:8082
+   - MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
+
+3. **Configuration tested**:
+   - **S3 topic mappings**: Loaded from `s3://protobuf-descriptors/topic-mappings.json`
+   - **Local overrides**: `payment-events` → `test.Order` (overrides S3)
+   - **S3 mappings**: `user-events` → `test.User`, `order-events` → `test.Order`
+
 ### Quick Commands via Makefile
 
 From the project root:

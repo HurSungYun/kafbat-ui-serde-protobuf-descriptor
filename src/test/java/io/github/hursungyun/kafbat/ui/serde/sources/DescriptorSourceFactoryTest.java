@@ -111,8 +111,8 @@ class DescriptorSourceFactoryTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenS3ConfigurationIncomplete() {
-        // Missing access key
+    void shouldCreateS3SourceWithoutCredentials() {
+        // Test IAM role-based authentication (no access key/secret key)
         when(properties.getProperty("protobuf.s3.endpoint", String.class))
                 .thenReturn(Optional.of("http://localhost:9000"));
         when(properties.getProperty("protobuf.s3.bucket", String.class))
@@ -120,13 +120,14 @@ class DescriptorSourceFactoryTest {
         when(properties.getProperty("protobuf.s3.object.key", String.class))
                 .thenReturn(Optional.of("descriptors.desc"));
         when(properties.getProperty("protobuf.s3.access.key", String.class))
-                .thenReturn(Optional.empty()); // Missing
+                .thenReturn(Optional.empty()); // Missing - should use IAM role
         when(properties.getProperty("protobuf.s3.secret.key", String.class))
-                .thenReturn(Optional.of("secret-key"));
+                .thenReturn(Optional.empty()); // Missing - should use IAM role
 
-        assertThatThrownBy(() -> DescriptorSourceFactory.create(properties))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("protobuf.s3.access.key is required");
+        DescriptorSource source = DescriptorSourceFactory.create(properties);
+
+        assertThat(source).isInstanceOf(S3DescriptorSource.class);
+        assertThat(source.getDescription()).isEqualTo("S3: s3://test-bucket/descriptors.desc");
     }
 
     @Test

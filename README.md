@@ -104,6 +104,31 @@ When using S3 topic mappings, create a JSON file with topic-to-message-type mapp
 
 **Note**: Local `protobuf.topic.message.map` configuration always overrides S3 topic mappings.
 
+#### S3 IAM Role-based Authentication (IRSA)
+
+For AWS environments using IAM roles (like EKS with IRSA), you can omit the access keys:
+
+```yaml
+kafka:
+  clusters:
+    - name: MyCluster
+      serde:
+        - name: ProtobufDescriptorSetSerde
+          className: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
+          filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-1.0.0.jar
+          properties:
+            # S3 Configuration using IAM roles (no access keys needed)
+            protobuf.s3.endpoint: "https://s3.ap-northeast-2.amazonaws.com"
+            protobuf.s3.bucket: "my-protobuf-descriptors"
+            protobuf.s3.object.key: "descriptors/my-app.desc"
+            protobuf.s3.region: "ap-northeast-2"
+            protobuf.s3.refresh.interval.seconds: 6000
+            
+            # Topic mappings from local configuration
+            protobuf.topic.message.map:
+              "my-topic": "my.package.MyMessage"
+```
+
 ## Configuration Properties
 
 ### Required Properties
@@ -116,8 +141,8 @@ When using S3 topic mappings, create a JSON file with topic-to-message-type mapp
 | `protobuf.s3.endpoint` | S3 endpoint URL (e.g., https://s3.amazonaws.com) |
 | `protobuf.s3.bucket` | S3 bucket name containing the descriptor set |
 | `protobuf.s3.object.key` | S3 object key (path) to the descriptor set file |
-| `protobuf.s3.access.key` | S3 access key |
-| `protobuf.s3.secret.key` | S3 secret key |
+| `protobuf.s3.access.key` | S3 access key (optional - uses IAM roles if not provided) |
+| `protobuf.s3.secret.key` | S3 secret key (optional - uses IAM roles if not provided) |
 
 ### Optional Properties
 

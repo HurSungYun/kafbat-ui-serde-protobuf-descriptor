@@ -125,10 +125,10 @@ public class ProtobufDescriptorSetSerde implements Serde {
     private S3TopicMappingSource createS3TopicMappingSourceFromProperties(PropertyResolver properties, String bucket, String objectKey) {
         String endpoint = properties.getProperty("protobuf.s3.endpoint", String.class)
                 .orElseThrow(() -> new IllegalArgumentException("protobuf.s3.endpoint is required for S3 topic mapping source"));
-        String accessKey = properties.getProperty("protobuf.s3.access.key", String.class)
-                .orElseThrow(() -> new IllegalArgumentException("protobuf.s3.access.key is required for S3 topic mapping source"));
-        String secretKey = properties.getProperty("protobuf.s3.secret.key", String.class)
-                .orElseThrow(() -> new IllegalArgumentException("protobuf.s3.secret.key is required for S3 topic mapping source"));
+        
+        // Get S3 credentials (optional for IAM role-based authentication)
+        Optional<String> accessKey = properties.getProperty("protobuf.s3.access.key", String.class);
+        Optional<String> secretKey = properties.getProperty("protobuf.s3.secret.key", String.class);
         
         // Optional configuration
         String region = properties.getProperty("protobuf.s3.region", String.class).orElse(null);
@@ -139,8 +139,13 @@ public class ProtobufDescriptorSetSerde implements Serde {
         
         // Build MinIO client
         MinioClient.Builder clientBuilder = MinioClient.builder()
-                .endpoint(endpoint)
-                .credentials(accessKey, secretKey);
+                .endpoint(endpoint);
+        
+        // Set credentials only if provided (for IAM role-based auth, credentials are optional)
+        if (accessKey.isPresent() && secretKey.isPresent()) {
+            clientBuilder.credentials(accessKey.get(), secretKey.get());
+        }
+        // If credentials are not provided, MinioClient will use IAM roles or environment variables
         
         if (region != null) {
             clientBuilder.region(region);
