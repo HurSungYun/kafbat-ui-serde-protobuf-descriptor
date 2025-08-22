@@ -51,11 +51,8 @@ public class DescriptorSourceFactory {
         MinioClient.Builder clientBuilder = MinioClient.builder()
                 .endpoint(endpoint);
         
-        // Set credentials only if provided (for IAM role-based auth, credentials are optional)
-        if (accessKey.isPresent() && secretKey.isPresent()) {
-            clientBuilder.credentials(accessKey.get(), secretKey.get());
-        }
-        // If credentials are not provided, MinioClient will use IAM roles or environment variables
+        // Configure credentials using centralized logic
+        configureMinioCredentials(clientBuilder, accessKey, secretKey);
         
         if (region != null) {
             clientBuilder.region(region);
@@ -73,5 +70,39 @@ public class DescriptorSourceFactory {
         MinioClient minioClient = clientBuilder.build();
         
         return new S3DescriptorSource(minioClient, bucket, objectKey, refreshInterval);
+    }
+    
+    /**
+     * Centralized method to configure MinIO client credentials
+     * Handles explicit credentials, IRSA/IAM roles, and default credential chain
+     */
+    public static void configureMinioCredentials(MinioClient.Builder clientBuilder, 
+                                               Optional<String> accessKey, 
+                                               Optional<String> secretKey) {
+        if (accessKey.isPresent() && secretKey.isPresent()) {
+            // Use explicit credentials from configuration
+            clientBuilder.credentials(accessKey.get(), secretKey.get());
+        } else {
+            // Try to get credentials from environment (IRSA/IAM roles)
+            String envAccessKey = System.getenv("AWS_ACCESS_KEY_ID");
+            String envSecretKey = System.getenv("AWS_SECRET_ACCESS_KEY");
+            String envSessionToken = System.getenv("AWS_SESSION_TOKEN");
+            String awsRoleArn = System.getenv("AWS_ROLE_ARN");
+            String webIdentityTokenFile = System.getenv("AWS_WEB_IDENTITY_TOKEN_FILE");
+
+            if (envAccessKey != null && envSecretKey != null) {
+                // Use environment credentials
+                clientBuilder.credentials(envAccessKey, envSecretKey);
+            } else if (awsRoleArn != null && webIdentityTokenFile != null) {
+                // IRSA is configured but credentials not yet available in environment
+                throw new IllegalStateException(
+                    "IRSA is configured (AWS_ROLE_ARN=" + awsRoleArn + ") but AWS credentials are not available in environment. " +
+                    "This might indicate an issue with IRSA setup or credential refresh. " +
+                    "Please verify your service account has the correct eks.amazonaws.com/role-arn annotation " +
+                    "and the IAM role trust policy allows your service account."
+                );
+            }
+            // Otherwise rely on MinioClient default credential chain (instance profile, etc.)
+        }
     }
 }

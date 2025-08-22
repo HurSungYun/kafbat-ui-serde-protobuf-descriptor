@@ -141,11 +141,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
         MinioClient.Builder clientBuilder = MinioClient.builder()
                 .endpoint(endpoint);
         
-        // Set credentials only if provided (for IAM role-based auth, credentials are optional)
-        if (accessKey.isPresent() && secretKey.isPresent()) {
-            clientBuilder.credentials(accessKey.get(), secretKey.get());
-        }
-        // If credentials are not provided, MinioClient will use IAM roles or environment variables
+        // Configure credentials using centralized logic
+        DescriptorSourceFactory.configureMinioCredentials(clientBuilder, accessKey, secretKey);
         
         if (region != null) {
             clientBuilder.region(region);
