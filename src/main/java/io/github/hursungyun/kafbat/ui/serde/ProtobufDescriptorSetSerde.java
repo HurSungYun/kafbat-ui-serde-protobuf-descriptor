@@ -133,6 +133,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
         // Optional configuration
         String region = properties.getProperty("protobuf.s3.region", String.class).orElse(null);
         boolean secure = properties.getProperty("protobuf.s3.secure", Boolean.class).orElse(true);
+        String stsEndpoint = properties.getProperty("protobuf.s3.sts.endpoint", String.class)
+                .orElse("https://sts.amazonaws.com");
         Duration refreshInterval = properties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class)
                 .map(Duration::ofSeconds)
                 .orElse(Duration.ofHours(1));
@@ -142,7 +144,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 .endpoint(endpoint);
         
         // Configure credentials using centralized logic
-        DescriptorSourceFactory.configureMinioCredentials(clientBuilder, accessKey, secretKey);
+        DescriptorSourceFactory.configureMinioCredentials(clientBuilder, accessKey, secretKey, stsEndpoint);
         
         if (region != null) {
             clientBuilder.region(region);

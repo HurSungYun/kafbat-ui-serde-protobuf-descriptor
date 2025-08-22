@@ -2,9 +2,15 @@ package io.github.hursungyun.kafbat.ui.serde.sources;
 
 import io.kafbat.ui.serde.api.PropertyResolver;
 import io.minio.MinioClient;
+import io.minio.credentials.Jwt;
+import io.minio.credentials.Provider;
+import io.minio.credentials.WebIdentityProvider;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Factory for creating descriptor sources based on configuration
@@ -43,6 +49,8 @@ public class DescriptorSourceFactory {
         // Optional configuration
         String region = properties.getProperty("protobuf.s3.region", String.class).orElse(null);
         boolean secure = properties.getProperty("protobuf.s3.secure", Boolean.class).orElse(true);
+        String stsEndpoint = properties.getProperty("protobuf.s3.sts.endpoint", String.class)
+                .orElse("https://sts.amazonaws.com");
         Duration refreshInterval = properties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class)
                 .map(Duration::ofSeconds)
                 .orElse(Duration.ofHours(1)); // Default 1 hour
@@ -52,7 +60,7 @@ public class DescriptorSourceFactory {
                 .endpoint(endpoint);
         
         // Configure credentials using centralized logic
-        configureMinioCredentials(clientBuilder, accessKey, secretKey);
+        configureMinioCredentials(clientBuilder, accessKey, secretKey, stsEndpoint);
         
         if (region != null) {
             clientBuilder.region(region);
@@ -78,7 +86,8 @@ public class DescriptorSourceFactory {
      */
     public static void configureMinioCredentials(MinioClient.Builder clientBuilder, 
                                                Optional<String> accessKey, 
-                                               Optional<String> secretKey) {
+                                               Optional<String> secretKey,
+                                               String stsEndpoint) {
         if (accessKey.isPresent() && secretKey.isPresent()) {
             // Use explicit credentials from configuration
             clientBuilder.credentials(accessKey.get(), secretKey.get());
@@ -91,16 +100,34 @@ public class DescriptorSourceFactory {
             String webIdentityTokenFile = System.getenv("AWS_WEB_IDENTITY_TOKEN_FILE");
 
             if (envAccessKey != null && envSecretKey != null) {
-                // Use environment credentials
+                // Use environment credentials (from previous IRSA token refresh)
                 clientBuilder.credentials(envAccessKey, envSecretKey);
             } else if (awsRoleArn != null && webIdentityTokenFile != null) {
-                // IRSA is configured but credentials not yet available in environment
-                throw new IllegalStateException(
-                    "IRSA is configured (AWS_ROLE_ARN=" + awsRoleArn + ") but AWS credentials are not available in environment. " +
-                    "This might indicate an issue with IRSA setup or credential refresh. " +
-                    "Please verify your service account has the correct eks.amazonaws.com/role-arn annotation " +
-                    "and the IAM role trust policy allows your service account."
-                );
+                // Use IRSA with WebIdentityProvider
+                try {
+                    Supplier<Jwt> jwtSupplier = () -> {
+                        try {
+                            String jwtToken = Files.readString(Path.of(webIdentityTokenFile));
+                            return new Jwt(jwtToken, 3600); // 1 hour expiry
+                        } catch (Exception e) {
+                            throw new RuntimeException("Failed to read IRSA token from " + webIdentityTokenFile, e);
+                        }
+                    };
+
+                    Provider provider = new WebIdentityProvider(
+                            jwtSupplier,
+                            stsEndpoint,                  // configurable STS endpoint
+                            null,                         // duration (use default)
+                            null,                         // policy (none)
+                            awsRoleArn,                   // role ARN from environment
+                            "kafbat-ui-serde-session",    // session name
+                            null                          // custom HTTP client (use default)
+                    );
+
+                    clientBuilder.credentialsProvider(provider);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to configure IRSA WebIdentityProvider for role: " + awsRoleArn, e);
+                }
             }
             // Otherwise rely on MinioClient default credential chain (instance profile, etc.)
         }
