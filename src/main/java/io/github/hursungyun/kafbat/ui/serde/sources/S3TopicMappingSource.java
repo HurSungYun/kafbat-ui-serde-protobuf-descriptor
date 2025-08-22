@@ -27,19 +27,19 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Source for loading topic-to-message-type mappings from S3 JSON files
  */
 public class S3TopicMappingSource {
-    
+
     private final MinioClient minioClient;
     private final String bucketName;
     private final String objectKey;
     private final Duration refreshInterval;
     private final ObjectMapper objectMapper;
-    
+
     // Caching
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private volatile Map<String, String> cachedTopicMappings;
     private volatile Instant lastRefresh;
     private volatile String lastETag;
-    
+
     public S3TopicMappingSource(MinioClient minioClient, String bucketName, String objectKey, Duration refreshInterval) {
         this.minioClient = minioClient;
         this.bucketName = bucketName;
@@ -47,7 +47,7 @@ public class S3TopicMappingSource {
         this.refreshInterval = refreshInterval;
         this.objectMapper = new ObjectMapper();
     }
-    
+
     public Map<String, String> loadTopicMappings() throws IOException {
         lock.readLock().lock();
         try {
@@ -58,7 +58,7 @@ public class S3TopicMappingSource {
         } finally {
             lock.readLock().unlock();
         }
-        
+
         // Need to refresh - acquire write lock
         lock.writeLock().lock();
         try {
@@ -66,40 +66,40 @@ public class S3TopicMappingSource {
             if (cachedTopicMappings != null && !shouldRefresh()) {
                 return cachedTopicMappings;
             }
-            
+
             // Check if object has changed on S3
             StatObjectResponse stat = getObjectStat();
             String currentETag = stat.etag();
-            
+
             if (cachedTopicMappings != null && currentETag.equals(lastETag)) {
                 // Object hasn't changed, just update refresh time
                 lastRefresh = Instant.now();
                 return cachedTopicMappings;
             }
-            
+
             // Load fresh copy from S3
             try (InputStream inputStream = minioClient.getObject(
                     GetObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectKey)
                             .build())) {
-                
+
                 // Parse JSON as Map<String, String>
                 TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>() {};
                 cachedTopicMappings = objectMapper.readValue(inputStream, typeRef);
                 lastRefresh = Instant.now();
                 lastETag = currentETag;
-                
+
                 return cachedTopicMappings;
             }
-            
+
         } catch (Exception e) {
             throw new IOException("Failed to load topic mappings from S3: s3://" + bucketName + "/" + objectKey, e);
         } finally {
             lock.writeLock().unlock();
         }
     }
-    
+
     public Optional<Instant> getLastModified() {
         try {
             StatObjectResponse stat = getObjectStat();
@@ -108,15 +108,15 @@ public class S3TopicMappingSource {
             return Optional.empty();
         }
     }
-    
+
     public String getDescription() {
         return "S3 Topic Mappings: s3://" + bucketName + "/" + objectKey;
     }
-    
+
     public boolean supportsRefresh() {
         return true;
     }
-    
+
     /**
      * Force refresh of the cached topic mappings on next load
      */
@@ -129,12 +129,12 @@ public class S3TopicMappingSource {
             lock.writeLock().unlock();
         }
     }
-    
+
     private boolean shouldRefresh() {
-        return lastRefresh == null || 
+        return lastRefresh == null ||
                Duration.between(lastRefresh, Instant.now()).compareTo(refreshInterval) >= 0;
     }
-    
+
     private StatObjectResponse getObjectStat() throws IOException {
         try {
             return minioClient.statObject(
