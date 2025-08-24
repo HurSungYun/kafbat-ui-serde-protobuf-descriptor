@@ -35,7 +35,7 @@ protoc --descriptor_set_out=descriptors.desc \
 
 Download the latest JAR from [Releases](https://github.com/hursungyun/kafka-ui-protobuf-descriptor-set-serde/releases) or build from source.
 
-**Note**: Replace `{VERSION}` in the configuration examples below with the actual version number (e.g., `0.0.8`).
+**Note**: Replace `{VERSION}` in the configuration examples below with the actual version number (e.g., `0.1.0`).
 
 ### 3. Configure Kafbat UI
 
