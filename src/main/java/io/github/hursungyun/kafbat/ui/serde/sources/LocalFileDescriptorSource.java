@@ -18,7 +18,10 @@ public class LocalFileDescriptorSource implements DescriptorSource {
     private final String filePath;
     
     public LocalFileDescriptorSource(String filePath) {
-        this.filePath = filePath;
+        if (filePath == null || filePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("filePath cannot be null or empty");
+        }
+        this.filePath = filePath.trim();
     }
     
     @Override

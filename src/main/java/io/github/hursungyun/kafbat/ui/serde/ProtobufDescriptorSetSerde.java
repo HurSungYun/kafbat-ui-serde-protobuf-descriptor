@@ -39,18 +39,33 @@ public class ProtobufDescriptorSetSerde implements Serde {
     public void configure(PropertyResolver serdeProperties,
                           PropertyResolver clusterProperties,
                           PropertyResolver appProperties) {
+        this.serdeProperties = serdeProperties;
+        
         try {
-            this.serdeProperties = serdeProperties;
-            this.descriptorSource = DescriptorSourceFactory.create(serdeProperties);
-            this.topicMappingSource = createTopicMappingSource(serdeProperties);
-            loadDescriptorSet();
-            configureTopicMappings(serdeProperties);
-            this.jsonPrinter = JsonFormat.printer().includingDefaultValueFields();
-            this.jsonParser = JsonFormat.parser();
-        } catch (Exception e) {
+            initializeDescriptorSources(serdeProperties);
+            initializeDescriptors();
+            initializeJsonFormatters();
+        } catch (IOException | Descriptors.DescriptorValidationException e) {
             String sourceDescription = descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
             throw new RuntimeException("Failed to load protobuf descriptor set from: " + sourceDescription, e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to configure ProtobufDescriptorSetSerde", e);
         }
+    }
+
+    private void initializeDescriptorSources(PropertyResolver serdeProperties) {
+        this.descriptorSource = DescriptorSourceFactory.create(serdeProperties);
+        this.topicMappingSource = createTopicMappingSource(serdeProperties);
+    }
+
+    private void initializeDescriptors() throws IOException, Descriptors.DescriptorValidationException {
+        loadDescriptorSet();
+        configureTopicMappings(serdeProperties);
+    }
+
+    private void initializeJsonFormatters() {
+        this.jsonPrinter = JsonFormat.printer().includingDefaultValueFields();
+        this.jsonParser = JsonFormat.parser();
     }
 
     private void loadDescriptorSet() throws IOException, Descriptors.DescriptorValidationException {
@@ -69,34 +84,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
         }
 
         // Second pass: create FileDescriptors with dependencies
-        boolean progress = true;
-        while (progress && tempDescriptors.size() < descriptorSet.getFileCount()) {
-            progress = false;
-            for (DescriptorProtos.FileDescriptorProto fileDescriptorProto : descriptorSet.getFileList()) {
-                if (tempDescriptors.containsKey(fileDescriptorProto.getName())) {
-                    continue;
-                }
-
-                // Check if all dependencies are resolved
-                boolean allDepsResolved = true;
-                Descriptors.FileDescriptor[] dependencies = new Descriptors.FileDescriptor[fileDescriptorProto.getDependencyCount()];
-                for (int i = 0; i < fileDescriptorProto.getDependencyCount(); i++) {
-                    String depName = fileDescriptorProto.getDependency(i);
-                    if (!tempDescriptors.containsKey(depName)) {
-                        allDepsResolved = false;
-                        break;
-                    }
-                    dependencies[i] = tempDescriptors.get(depName);
-                }
-
-                if (allDepsResolved) {
-                    Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(
-                            fileDescriptorProto, dependencies);
-                    tempDescriptors.put(fileDescriptorProto.getName(), fileDescriptor);
-                    progress = true;
-                }
-            }
-        }
+        buildFileDescriptorsWithDependencies(descriptorSet, tempDescriptors);
 
         this.fileDescriptorMap = tempDescriptors;
     }
@@ -135,10 +123,15 @@ public class ProtobufDescriptorSetSerde implements Serde {
     }
 
     private void configureTopicMappings(PropertyResolver serdeProperties) {
-        // Get default message type for all topics
         Optional<String> defaultMessageName = serdeProperties.getProperty("protobuf.message.name", String.class);
+        Map<String, String> combinedTopicMappings = loadCombinedTopicMappings(serdeProperties);
+        Map<String, Descriptors.Descriptor> allDescriptors = buildDescriptorMap();
+        
+        configureDefaultMessageDescriptor(defaultMessageName, allDescriptors);
+        configureTopicSpecificMappings(combinedTopicMappings, allDescriptors);
+    }
 
-        // Load topic mappings from S3 first, then override with local properties
+    private Map<String, String> loadCombinedTopicMappings(PropertyResolver serdeProperties) {
         Map<String, String> combinedTopicMappings = new HashMap<>();
 
         // Load from S3 if available
@@ -158,45 +151,35 @@ public class ProtobufDescriptorSetSerde implements Serde {
             combinedTopicMappings.putAll(localTopicMessageMappings.get());
         }
 
-        // Build descriptor map for all message types
+        return combinedTopicMappings;
+    }
+
+    private Map<String, Descriptors.Descriptor> buildDescriptorMap() {
         Map<String, Descriptors.Descriptor> allDescriptors = new HashMap<>();
         for (Descriptors.FileDescriptor fileDescriptor : fileDescriptorMap.values()) {
             for (Descriptors.Descriptor messageDescriptor : fileDescriptor.getMessageTypes()) {
                 allDescriptors.put(messageDescriptor.getFullName(), messageDescriptor);
             }
         }
+        return allDescriptors;
+    }
 
-        // Set default message descriptor
+    private void configureDefaultMessageDescriptor(Optional<String> defaultMessageName, 
+                                                  Map<String, Descriptors.Descriptor> allDescriptors) {
         if (defaultMessageName.isPresent()) {
-            this.defaultMessageDescriptor = allDescriptors.get(defaultMessageName.get());
-            if (this.defaultMessageDescriptor == null) {
-                // Try to find by simple name if full name not found
-                for (Descriptors.Descriptor desc : allDescriptors.values()) {
-                    if (desc.getName().equals(defaultMessageName.get())) {
-                        this.defaultMessageDescriptor = desc;
-                        break;
-                    }
-                }
-            }
+            this.defaultMessageDescriptor = findDescriptorByName(allDescriptors, defaultMessageName.get());
         } else {
             this.defaultMessageDescriptor = null;
         }
+    }
 
-        // Set topic-specific mappings (from combined S3 + local mappings)
+    private void configureTopicSpecificMappings(Map<String, String> combinedTopicMappings, 
+                                               Map<String, Descriptors.Descriptor> allDescriptors) {
         if (!combinedTopicMappings.isEmpty()) {
             for (Map.Entry<String, String> entry : combinedTopicMappings.entrySet()) {
                 String topic = entry.getKey();
                 String messageName = entry.getValue();
-                Descriptors.Descriptor descriptor = allDescriptors.get(messageName);
-                if (descriptor == null) {
-                    // Try to find by simple name if full name not found
-                    for (Descriptors.Descriptor desc : allDescriptors.values()) {
-                        if (desc.getName().equals(messageName)) {
-                            descriptor = desc;
-                            break;
-                        }
-                    }
-                }
+                Descriptors.Descriptor descriptor = findDescriptorByName(allDescriptors, messageName);
                 if (descriptor != null) {
                     topicToMessageDescriptorMap.put(topic, descriptor);
                 }
@@ -339,5 +322,63 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 info.put("topicMappingLastModified", lastModified.toString()));
         }
         return info;
+    }
+
+    /**
+     * Find a protobuf descriptor by name, trying full name first, then simple name
+     */
+    private Descriptors.Descriptor findDescriptorByName(Map<String, Descriptors.Descriptor> allDescriptors, String messageName) {
+        // Try full name first
+        Descriptors.Descriptor descriptor = allDescriptors.get(messageName);
+        if (descriptor != null) {
+            return descriptor;
+        }
+        
+        // Fall back to simple name lookup
+        for (Descriptors.Descriptor desc : allDescriptors.values()) {
+            if (desc.getName().equals(messageName)) {
+                return desc;
+            }
+        }
+        
+        return null;
+    }
+
+    private void buildFileDescriptorsWithDependencies(DescriptorProtos.FileDescriptorSet descriptorSet, 
+                                                      Map<String, Descriptors.FileDescriptor> tempDescriptors) 
+                                                      throws Descriptors.DescriptorValidationException {
+        boolean progress = true;
+        while (progress && tempDescriptors.size() < descriptorSet.getFileCount()) {
+            progress = false;
+            for (DescriptorProtos.FileDescriptorProto fileDescriptorProto : descriptorSet.getFileList()) {
+                if (tempDescriptors.containsKey(fileDescriptorProto.getName())) {
+                    continue;
+                }
+
+                Descriptors.FileDescriptor[] dependencies = resolveDependencies(fileDescriptorProto, tempDescriptors);
+                if (dependencies != null) {
+                    Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(
+                            fileDescriptorProto, dependencies);
+                    tempDescriptors.put(fileDescriptorProto.getName(), fileDescriptor);
+                    progress = true;
+                }
+            }
+        }
+    }
+
+    private Descriptors.FileDescriptor[] resolveDependencies(DescriptorProtos.FileDescriptorProto fileDescriptorProto, 
+                                                            Map<String, Descriptors.FileDescriptor> tempDescriptors) {
+        Descriptors.FileDescriptor[] dependencies = new Descriptors.FileDescriptor[fileDescriptorProto.getDependencyCount()];
+        
+        for (int i = 0; i < fileDescriptorProto.getDependencyCount(); i++) {
+            String depName = fileDescriptorProto.getDependency(i);
+            Descriptors.FileDescriptor dependency = tempDescriptors.get(depName);
+            if (dependency == null) {
+                return null; // Not all dependencies resolved yet
+            }
+            dependencies[i] = dependency;
+        }
+        
+        return dependencies;
     }
 }
