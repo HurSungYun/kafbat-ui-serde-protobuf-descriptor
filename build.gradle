@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'io.github.hursungyun.kafbat.ui.serde'
-version = '0.1.2'
+version = '0.1.3'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
