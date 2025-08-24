@@ -65,7 +65,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     private void initializeJsonFormatters() {
         this.jsonPrinter = JsonFormat.printer().includingDefaultValueFields();
-        this.jsonParser = JsonFormat.parser().ignoringUnknownFields();
+        this.jsonParser = JsonFormat.parser();
     }
 
     private void loadDescriptorSet() throws IOException, Descriptors.DescriptorValidationException {
@@ -280,8 +280,20 @@ public class ProtobufDescriptorSetSerde implements Serde {
         jsonParser.merge(jsonInput, messageBuilder);
         DynamicMessage message = messageBuilder.build();
         
+        // Validate required fields (proto2 only)
+        validateRequiredFields(message, messageDescriptor);
+        
         // Convert to byte array
         return message.toByteArray();
+    }
+    
+    private void validateRequiredFields(DynamicMessage message, Descriptors.Descriptor messageDescriptor) {
+        for (Descriptors.FieldDescriptor field : messageDescriptor.getFields()) {
+            if (field.isRequired() && !message.hasField(field)) {
+                throw new IllegalArgumentException(
+                    "Required field '" + field.getName() + "' is missing in message type '" + messageDescriptor.getFullName() + "'");
+            }
+        }
     }
 
     /**

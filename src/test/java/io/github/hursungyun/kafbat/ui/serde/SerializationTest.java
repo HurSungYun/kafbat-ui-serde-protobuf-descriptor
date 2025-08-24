@@ -101,6 +101,41 @@ class SerializationTest {
     }
 
     @Test
+    void shouldThrowExceptionForUnknownFields() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // JSON with unknown fields should fail
+        String jsonWithUnknownFields = """
+                {
+                    "id": 42,
+                    "name": "Valid User",
+                    "unknownField": "should fail"
+                }
+                """;
+        
+        // Should throw exception for unknown fields
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(jsonWithUnknownFields))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message");
+    }
+
+    @Test
+    void shouldThrowExceptionForInvalidJson() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // Invalid JSON input
+        String invalidJson = "{ invalid json }";
+        
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(invalidJson))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message");
+    }
+
+    @Test
     void shouldUseTopicSpecificMessageTypes() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
         
@@ -148,48 +183,6 @@ class SerializationTest {
         // Should support serialization after configuration
         assertThat(serde.canSerialize("test-topic", Serde.Target.VALUE)).isTrue();
         assertThat(serde.canSerialize("test-topic", Serde.Target.KEY)).isFalse(); // Keys still not supported
-    }
-
-    @Test
-    void shouldThrowExceptionForInvalidJson() throws Exception {
-        Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
-
-        // Invalid JSON input
-        String invalidJson = "{ invalid json }";
-        
-        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
-                .serialize(invalidJson))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to serialize JSON to protobuf message");
-    }
-
-    @Test
-    void shouldHandleJsonWithUnknownFields() throws Exception {
-        Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
-
-        // Valid JSON but with unknown fields (protobuf should ignore them)
-        String jsonWithUnknownFields = """
-                {
-                    "id": 42,
-                    "name": "Valid User",
-                    "wrongField": "value",
-                    "anotherWrongField": 123
-                }
-                """;
-        
-        // Should succeed (protobuf ignores unknown fields)
-        byte[] result = serde.serializer("test-topic", Serde.Target.VALUE)
-                .serialize(jsonWithUnknownFields);
-        
-        // Should produce valid protobuf bytes
-        assertThat(result).isNotNull();
-        
-        // Verify it parsed correctly, ignoring unknown fields
-        UserProtos.User parsedUser = UserProtos.User.parseFrom(result);
-        assertThat(parsedUser.getId()).isEqualTo(42);
-        assertThat(parsedUser.getName()).isEqualTo("Valid User");
     }
 
     @Test

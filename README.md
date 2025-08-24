@@ -120,15 +120,19 @@ When using S3 topic mappings, create a JSON file with topic-to-message-type mapp
 
 **Note**: Local `topic.mapping.local` configuration always overrides S3 topic mappings.
 
-## ⚡ Current Limitations & Roadmap
+## ⚡ Features & Roadmap
 
 ### Current Version (0.1.0)
 - **✅ Deserialization**: Full protobuf message deserialization (binary → JSON)
 - **✅ Serialization**: Full protobuf message serialization (JSON → binary)
+- **✅ Strict Validation**: Unknown JSON fields cause serialization errors
+- **✅ Required Field Validation**: Automatic validation for proto2 required fields
 - **❌ Key/Value Separation**: Currently only supports message values, not keys
 
 ### Planned Features (v0.2.0+)
 - **🔑 Key Support**: Separate protobuf types for message keys and values
+- **📊 Metrics**: Performance monitoring and observability
+- **🔄 Schema Evolution**: Compatibility checking and migration support
 
 #### S3 IAM Role-based Authentication (IRSA)
 
