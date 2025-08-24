@@ -47,7 +47,7 @@ class ProtobufDescriptorSetSerdeTest {
 
     @Test
     void shouldThrowExceptionWhenDescriptorSetFilePropertyIsMissing() {
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.empty());
         // Also mock S3 properties to be empty
         mockS3PropertiesEmpty();
@@ -65,12 +65,12 @@ class ProtobufDescriptorSetSerdeTest {
         // Configure serde with test descriptor
         Path descriptorFile = copyDescriptorSetToTemp();
         
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
         mockS3PropertiesEmpty();
-        when(serdeProperties.getProperty("message.default.type", String.class))
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
                 .thenReturn(Optional.of("User"));
-        when(serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class))
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
@@ -93,12 +93,12 @@ class ProtobufDescriptorSetSerdeTest {
         Path descriptorFile = copyDescriptorSetToTemp();
         
         // Configure serde
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
         mockS3PropertiesEmpty();
-        when(serdeProperties.getProperty("message.default.type", String.class))
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
                 .thenReturn(Optional.of("test.User"));
-        when(serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class))
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
@@ -114,12 +114,12 @@ class ProtobufDescriptorSetSerdeTest {
         Path descriptorFile = copyDescriptorSetToTemp();
         
         // Configure serde with User message type
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
         mockS3PropertiesEmpty();
-        when(serdeProperties.getProperty("message.default.type", String.class))
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
                 .thenReturn(Optional.of("User"));
-        when(serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class))
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
@@ -176,12 +176,12 @@ class ProtobufDescriptorSetSerdeTest {
         Path descriptorFile = copyDescriptorSetToTemp();
         
         // Configure serde with specific Order message type
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
         mockS3PropertiesEmpty();
-        when(serdeProperties.getProperty("message.default.type", String.class))
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
                 .thenReturn(Optional.of("Order")); // Specify Order message type
-        when(serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class))
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
@@ -255,12 +255,12 @@ class ProtobufDescriptorSetSerdeTest {
         Path descriptorFile = copyDescriptorSetToTemp();
         
         // Configure serde without specifying message type
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
         mockS3PropertiesEmpty();
-        when(serdeProperties.getProperty("message.default.type", String.class))
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
                 .thenReturn(Optional.empty()); // No message type specified
-        when(serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class))
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
         
         serde.configure(serdeProperties, clusterProperties, appProperties);
@@ -277,7 +277,7 @@ class ProtobufDescriptorSetSerdeTest {
 
     @Test
     void shouldThrowExceptionWhenDescriptorSetFileNotFound() {
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of("/nonexistent/file.desc"));
         
         assertThatThrownBy(() -> serde.configure(serdeProperties, clusterProperties, appProperties))
@@ -286,11 +286,11 @@ class ProtobufDescriptorSetSerdeTest {
     }
 
     private void mockS3PropertiesEmpty() {
-        when(serdeProperties.getProperty("descriptor.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
                 .thenReturn(Optional.empty());
-        when(serdeProperties.getProperty("descriptor.s3.bucket", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.empty());
-        when(serdeProperties.getProperty("descriptor.s3.object.key", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.empty());
     }
 
@@ -423,27 +423,27 @@ class ProtobufDescriptorSetSerdeTest {
         Path descriptorFile = copyDescriptorSetToTemp();
         
         // Setup local descriptor source (required)
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
         
         // Setup S3 topic mapping configuration
-        when(serdeProperties.getProperty("topic.mapping.s3.bucket", String.class))
+        when(serdeProperties.getProperty("topic.mapping.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
-        when(serdeProperties.getProperty("topic.mapping.s3.object.key", String.class))
+        when(serdeProperties.getProperty("topic.mapping.value.s3.object.key", String.class))
                 .thenReturn(Optional.of("topic-mappings.json"));
-        when(serdeProperties.getProperty("descriptor.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
                 .thenReturn(Optional.of("http://localhost:9000"));
-        when(serdeProperties.getProperty("descriptor.s3.access.key", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.access.key", String.class))
                 .thenReturn(Optional.of("testkey"));
-        when(serdeProperties.getProperty("descriptor.s3.secret.key", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.secret.key", String.class))
                 .thenReturn(Optional.of("testsecret"));
         
         // Mock other optional S3 properties
         mockS3PropertiesEmpty();
         
-        when(serdeProperties.getProperty("message.default.type", String.class))
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
                 .thenReturn(Optional.of("User"));
-        when(serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class))
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
 
         // This should not throw an exception - the serde should be configured with S3 topic mapping source

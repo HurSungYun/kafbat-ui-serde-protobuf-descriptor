@@ -91,8 +91,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     private S3TopicMappingSource createTopicMappingSource(PropertyResolver properties) {
         // Check for S3 topic mapping configuration
-        Optional<String> s3Bucket = properties.getProperty("topic.mapping.s3.bucket", String.class);
-        Optional<String> s3ObjectKey = properties.getProperty("topic.mapping.s3.object.key", String.class);
+        Optional<String> s3Bucket = properties.getProperty("topic.mapping.value.s3.bucket", String.class);
+        Optional<String> s3ObjectKey = properties.getProperty("topic.mapping.value.s3.object.key", String.class);
 
         if (s3Bucket.isPresent() && s3ObjectKey.isPresent()) {
             // Use existing S3 configuration from descriptor source
@@ -102,7 +102,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
             } else {
                 // Check if we have S3 credentials in properties
-                Optional<String> s3Endpoint = properties.getProperty("descriptor.s3.endpoint", String.class);
+                Optional<String> s3Endpoint = properties.getProperty("descriptor.value.s3.endpoint", String.class);
                 if (s3Endpoint.isPresent()) {
                     return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
                 }
@@ -114,7 +114,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     private S3TopicMappingSource createS3TopicMappingSourceFromProperties(PropertyResolver properties, String bucket, String objectKey) {
         // Create S3 configuration from properties (reusing same S3 config as descriptors)
-        S3Configuration config = S3Configuration.fromProperties(properties);
+        S3Configuration config = S3Configuration.fromProperties(properties, "descriptor.value.s3");
 
         // Create MinIO client using the factory
         MinioClient minioClient = MinioClientFactory.create(config);
@@ -123,7 +123,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
     }
 
     private void configureTopicMappings(PropertyResolver serdeProperties) {
-        Optional<String> defaultMessageName = serdeProperties.getProperty("message.default.type", String.class);
+        Optional<String> defaultMessageName = serdeProperties.getProperty("message.value.default.type", String.class);
         Map<String, String> combinedTopicMappings = loadCombinedTopicMappings(serdeProperties);
         Map<String, Descriptors.Descriptor> allDescriptors = buildDescriptorMap();
         
@@ -146,7 +146,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
         // Get topic-specific message mappings from local configuration (overrides S3)
         Optional<Map<String, String>> localTopicMessageMappings =
-                serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class);
+                serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class);
         if (localTopicMessageMappings.isPresent()) {
             combinedTopicMappings.putAll(localTopicMessageMappings.get());
         }

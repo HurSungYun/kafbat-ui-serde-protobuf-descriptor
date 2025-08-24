@@ -39,23 +39,23 @@ class MinioClientFactoryTest {
     @Test
     void shouldCreateMinioClientWithMinimalConfiguration() {
         // Setup minimal properties (no credentials, using defaults)
-        when(properties.getProperty("descriptor.s3.endpoint", String.class))
+        when(properties.getProperty("descriptor.value.s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
-        when(properties.getProperty("descriptor.s3.bucket", String.class))
+        when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
-        when(properties.getProperty("descriptor.s3.object.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
-        when(properties.getProperty("descriptor.s3.access.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.access.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.s3.secret.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.secret.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.s3.region", String.class))
+        when(properties.getProperty("descriptor.value.s3.region", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.s3.secure", Boolean.class))
+        when(properties.getProperty("descriptor.value.s3.secure", Boolean.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.s3.sts.endpoint", String.class))
+        when(properties.getProperty("descriptor.value.s3.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.s3.refresh.interval.seconds", Long.class))
+        when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.empty());
 
         // Create configuration and client
@@ -69,23 +69,23 @@ class MinioClientFactoryTest {
     @Test
     void shouldCreateMinioClientWithInsecureEndpoint() {
         // Setup properties with insecure endpoint
-        when(properties.getProperty("descriptor.s3.endpoint", String.class))
+        when(properties.getProperty("descriptor.value.s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://localhost:9000"));
-        when(properties.getProperty("descriptor.s3.bucket", String.class))
+        when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
-        when(properties.getProperty("descriptor.s3.object.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
-        when(properties.getProperty("descriptor.s3.access.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.access.key", String.class))
                 .thenReturn(Optional.of("test-key"));
-        when(properties.getProperty("descriptor.s3.secret.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.secret.key", String.class))
                 .thenReturn(Optional.of("test-secret"));
-        when(properties.getProperty("descriptor.s3.region", String.class))
+        when(properties.getProperty("descriptor.value.s3.region", String.class))
                 .thenReturn(Optional.of("us-east-1"));
-        when(properties.getProperty("descriptor.s3.secure", Boolean.class))
+        when(properties.getProperty("descriptor.value.s3.secure", Boolean.class))
                 .thenReturn(Optional.of(false));  // insecure
-        when(properties.getProperty("descriptor.s3.sts.endpoint", String.class))
+        when(properties.getProperty("descriptor.value.s3.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.s3.refresh.interval.seconds", Long.class))
+        when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(1800L));
 
         // Create configuration and client
@@ -97,23 +97,23 @@ class MinioClientFactoryTest {
     }
 
     private void setupValidS3Properties() {
-        when(properties.getProperty("descriptor.s3.endpoint", String.class))
+        when(properties.getProperty("descriptor.value.s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
-        when(properties.getProperty("descriptor.s3.bucket", String.class))
+        when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
-        when(properties.getProperty("descriptor.s3.object.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
-        when(properties.getProperty("descriptor.s3.access.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.access.key", String.class))
                 .thenReturn(Optional.of("test-access-key"));
-        when(properties.getProperty("descriptor.s3.secret.key", String.class))
+        when(properties.getProperty("descriptor.value.s3.secret.key", String.class))
                 .thenReturn(Optional.of("test-secret-key"));
-        when(properties.getProperty("descriptor.s3.region", String.class))
+        when(properties.getProperty("descriptor.value.s3.region", String.class))
                 .thenReturn(Optional.of("us-east-1"));
-        when(properties.getProperty("descriptor.s3.secure", Boolean.class))
+        when(properties.getProperty("descriptor.value.s3.secure", Boolean.class))
                 .thenReturn(Optional.of(true));
-        when(properties.getProperty("descriptor.s3.sts.endpoint", String.class))
+        when(properties.getProperty("descriptor.value.s3.sts.endpoint", String.class))
                 .thenReturn(Optional.of("https://sts.amazonaws.com"));
-        when(properties.getProperty("descriptor.s3.refresh.interval.seconds", Long.class))
+        when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(3600L));
     }
 }
