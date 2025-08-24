@@ -168,4 +168,27 @@ public class ProtobufMessageValidator {
             }
         }
     }
+    
+    /**
+     * Validate that ALL fields in the protobuf schema are explicitly present in JSON
+     * This enforces strict validation where missing fields cause serialization to fail
+     */
+    public void validateAllFieldsPresent(String jsonInput, Descriptors.Descriptor messageDescriptor) throws Exception {
+        JsonNode jsonNode = objectMapper.readTree(jsonInput);
+        List<String> missingFields = new ArrayList<>();
+        
+        for (Descriptors.FieldDescriptor field : messageDescriptor.getFields()) {
+            String jsonFieldName = getJsonFieldName(field);
+            if (!jsonNode.has(jsonFieldName)) {
+                missingFields.add(jsonFieldName + " (" + field.getType().name().toLowerCase() + ")");
+            }
+        }
+        
+        if (!missingFields.isEmpty()) {
+            throw new IllegalArgumentException(
+                "All fields must be explicitly provided in JSON for message type '" + messageDescriptor.getFullName() + "'. " +
+                "Missing fields: " + String.join(", ", missingFields) + 
+                ". Provide all fields with appropriate values (use null for optional fields).");
+        }
+    }
 }

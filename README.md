@@ -120,12 +120,33 @@ When using S3 topic mappings, create a JSON file with topic-to-message-type mapp
 
 **Note**: Local `topic.mapping.value.local` configuration always overrides S3 topic mappings.
 
+## 🔒 Serialization Validation Modes
+
+### Strict Mode (Default)
+```yaml
+properties:
+  serialization.strict.field.validation: true  # Default
+```
+- **All fields must be present** in JSON, even if null
+- **Missing fields cause errors** - prevents accidental data loss
+- **Best for production** - ensures data completeness
+
+### Lenient Mode
+```yaml
+properties:
+  serialization.strict.field.validation: false
+```
+- **Missing fields get default values** (0, "", [], null)
+- **More flexible** for varied JSON input formats
+- **Best for development** - easier testing with partial JSON
+
 ## ⚡ Features & Roadmap
 
 ### Current Version (0.1.2)
 - **✅ Deserialization**: Full protobuf message deserialization (binary → JSON)
 - **✅ Serialization**: Full protobuf message serialization (JSON → binary)
-- **✅ Strict Validation**: Unknown JSON fields cause serialization errors
+- **✅ Strict Field Validation**: Configurable validation requiring all fields in JSON (default: enabled)
+- **✅ Unknown Field Rejection**: Unknown JSON fields cause serialization errors
 - **❌ Key/Value Separation**: Currently only supports message values, not keys
 
 ### Planned Features (v0.2.0+)
@@ -153,6 +174,9 @@ kafka:
             descriptor.value.s3.bucket: "my-protobuf-descriptors"
             descriptor.value.s3.object.key: "descriptors/my-app.desc"
             descriptor.value.s3.refresh.interval.seconds: 6000
+            
+            # Serialization behavior
+            serialization.strict.field.validation: true  # Require all fields in JSON
             
             # Topic mappings from local configuration
             topic.mapping.value.local:
@@ -183,6 +207,7 @@ kafka:
 | `topic.mapping.value.local.*` | - | Topic-specific message type mapping (overrides S3 config) |
 | `topic.mapping.value.s3.bucket` | - | S3 bucket containing topic mapping JSON file |
 | `topic.mapping.value.s3.object.key` | - | S3 object key for topic mapping JSON file |
+| `serialization.strict.field.validation` | `true` | Require all protobuf fields in JSON (false = allow missing fields) |
 | `s3.region` | - | S3 region (if required by your provider) |
 | `s3.secure` | `true` | Use HTTPS (set to false for HTTP endpoints) |
 | `descriptor.value.s3.refresh.interval.seconds` | `300` | How often to check for descriptor updates |
