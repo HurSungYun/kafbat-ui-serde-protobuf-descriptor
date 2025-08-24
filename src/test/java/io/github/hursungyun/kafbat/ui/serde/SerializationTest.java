@@ -45,9 +45,9 @@ class SerializationTest {
     @Test
     void shouldSerializeSimpleUserMessage() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerdeWithLenientMode(descriptorFile, "test.User");
+        configureSerde(descriptorFile, "test.User"); // Use strict mode - all fields are present
 
-        // JSON input for User message (ALL fields required)
+        // JSON input for User message (ALL fields present - works with strict mode)
         String jsonInput = """
                 {
                     "id": 123,
@@ -414,16 +414,17 @@ class SerializationTest {
     @Test
     void shouldHandleJsonWithNullValues() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerdeWithLenientMode(descriptorFile, "test.User");
+        configureSerde(descriptorFile, "test.User");
 
-        // JSON with explicit null values for some fields
+        // JSON with explicit null values for some fields (ALL fields present)
         String jsonWithNulls = """
                 {
                     "id": 123,
                     "name": "Test User",
                     "email": null,
                     "tags": null,
-                    "type": null
+                    "type": null,
+                    "address": null
                 }
                 """;
 
