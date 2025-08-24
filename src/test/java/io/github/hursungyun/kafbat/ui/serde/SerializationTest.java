@@ -210,6 +210,215 @@ class SerializationTest {
                 .hasMessageContaining("No message type configured for topic: unmapped-topic");
     }
 
+    @Test
+    void shouldHandleJsonWithNullValues() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // JSON with explicit null values for some fields
+        String jsonWithNulls = """
+                {
+                    "id": 123,
+                    "name": "Test User",
+                    "email": null,
+                    "tags": null,
+                    "type": null
+                }
+                """;
+
+        // Should successfully serialize even with null values
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(jsonWithNulls);
+
+        // Verify by deserializing back - null values should be default values
+        UserProtos.User parsedUser = UserProtos.User.parseFrom(protobufBytes);
+        assertThat(parsedUser.getId()).isEqualTo(123);
+        assertThat(parsedUser.getName()).isEqualTo("Test User");
+        assertThat(parsedUser.getEmail()).isEmpty(); // Empty string for null string
+        assertThat(parsedUser.getTagsList()).isEmpty(); // Empty list for null repeated field
+        assertThat(parsedUser.getType()).isEqualTo(UserProtos.UserType.UNKNOWN); // Default enum value
+    }
+
+    @Test
+    void shouldValidateEnumValues() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // Test valid enum value by name
+        String jsonWithValidEnum = """
+                {
+                    "id": 123,
+                    "name": "Test User",
+                    "type": "ADMIN"
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(jsonWithValidEnum);
+
+        UserProtos.User parsedUser = UserProtos.User.parseFrom(protobufBytes);
+        assertThat(parsedUser.getType()).isEqualTo(UserProtos.UserType.ADMIN);
+    }
+
+    @Test
+    void shouldValidateEnumValuesByNumber() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // Test valid enum value by number
+        String jsonWithValidEnumNumber = """
+                {
+                    "id": 123,
+                    "name": "Test User",
+                    "type": 2
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(jsonWithValidEnumNumber);
+
+        UserProtos.User parsedUser = UserProtos.User.parseFrom(protobufBytes);
+        assertThat(parsedUser.getType()).isEqualTo(UserProtos.UserType.REGULAR);
+    }
+
+    @Test
+    void shouldThrowExceptionForInvalidEnumValue() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // JSON with invalid enum value
+        String jsonWithInvalidEnum = """
+                {
+                    "id": 123,
+                    "name": "Test User",
+                    "type": "INVALID_TYPE"
+                }
+                """;
+
+        // Should throw exception for invalid enum value
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(jsonWithInvalidEnum))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message");
+    }
+
+    @Test
+    void shouldThrowExceptionForInvalidEnumNumber() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // JSON with invalid enum number
+        String jsonWithInvalidEnumNumber = """
+                {
+                    "id": 123,
+                    "name": "Test User",
+                    "type": 999
+                }
+                """;
+
+        // Should throw exception for invalid enum number
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(jsonWithInvalidEnumNumber))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message");
+    }
+
+    @Test
+    void shouldHandleOrderWithEnumStatus() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.Order");
+
+        // JSON with Order containing enum status
+        String jsonWithOrderStatus = """
+                {
+                    "id": 789,
+                    "totalAmount": 199.99,
+                    "status": "CONFIRMED"
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(jsonWithOrderStatus);
+
+        OrderProtos.Order parsedOrder = OrderProtos.Order.parseFrom(protobufBytes);
+        assertThat(parsedOrder.getId()).isEqualTo(789);
+        assertThat(parsedOrder.getTotalAmount()).isEqualTo(199.99);
+        assertThat(parsedOrder.getStatus()).isEqualTo(OrderProtos.OrderStatus.CONFIRMED);
+    }
+
+    @Test
+    void shouldProvideDetailedErrorForMissingKeys() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        // Create a validator to test missing key validation
+        var validator = new io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufMessageValidator();
+        
+        // Load descriptor manually for testing
+        try (var is = getClass().getResourceAsStream("/test_descriptors.desc")) {
+            var descriptorSet = com.google.protobuf.DescriptorProtos.FileDescriptorSet.parseFrom(is);
+            
+            // Build user descriptor
+            var userFileDescriptor = com.google.protobuf.Descriptors.FileDescriptor.buildFrom(
+                descriptorSet.getFileList().stream()
+                    .filter(f -> f.getName().equals("user.proto"))
+                    .findFirst().get(), 
+                new com.google.protobuf.Descriptors.FileDescriptor[0]);
+            
+            var userDescriptor = userFileDescriptor.findMessageTypeByName("User");
+            
+            // JSON missing required keys
+            String jsonMissingKeys = """
+                    {
+                        "name": "Test User"
+                    }
+                    """;
+            
+            // Test validation with specific required fields
+            assertThatThrownBy(() -> validator.validateFieldsPresent(jsonMissingKeys, userDescriptor, "id", "email"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Missing required keys in JSON for message type 'test.User'")
+                    .hasMessageContaining("id")
+                    .hasMessageContaining("email");
+        }
+    }
+
+    @Test
+    void shouldProvideDetailedErrorForNonExistentFields() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        // Create a validator to test missing key validation
+        var validator = new io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufMessageValidator();
+        
+        // Load descriptor manually for testing
+        try (var is = getClass().getResourceAsStream("/test_descriptors.desc")) {
+            var descriptorSet = com.google.protobuf.DescriptorProtos.FileDescriptorSet.parseFrom(is);
+            
+            // Build user descriptor
+            var userFileDescriptor = com.google.protobuf.Descriptors.FileDescriptor.buildFrom(
+                descriptorSet.getFileList().stream()
+                    .filter(f -> f.getName().equals("user.proto"))
+                    .findFirst().get(), 
+                new com.google.protobuf.Descriptors.FileDescriptor[0]);
+            
+            var userDescriptor = userFileDescriptor.findMessageTypeByName("User");
+            
+            // JSON with basic fields
+            String json = """
+                    {
+                        "id": 123,
+                        "name": "Test User"
+                    }
+                    """;
+            
+            // Test validation with non-existent fields
+            assertThatThrownBy(() -> validator.validateFieldsPresent(json, userDescriptor, "nonExistentField", "anotherMissingField"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Missing required keys in JSON for message type 'test.User'")
+                    .hasMessageContaining("nonExistentField (field not found in schema)")
+                    .hasMessageContaining("anotherMissingField (field not found in schema)");
+        }
+    }
+
     private void configureSerde(Path descriptorFile, String defaultMessageType) {
         when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
