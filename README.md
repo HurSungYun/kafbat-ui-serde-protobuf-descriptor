@@ -11,7 +11,7 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 
 | Plugin Version | Kafbat UI Version | Serde API Version | Java Version |
 |---------------|-------------------|-------------------|--------------|
-| 0.1.1+        | >= 0.7.0          | 1.0.0            | 17+          |
+| 0.1.2+        | >= 0.7.0          | 1.0.0            | 17+          |
 
 **Note**: This plugin uses `io.kafbat.ui:serde-api:1.0.0` from Maven Central.
 
@@ -49,7 +49,7 @@ protoc --descriptor_set_out=descriptors.desc \
 
 Download the latest JAR from [Releases](https://github.com/hursungyun/kafka-ui-protobuf-descriptor-set-serde/releases) or build from source.
 
-**Note**: Replace `{VERSION}` in the configuration examples below with the actual version number (e.g., `0.1.1`).
+**Note**: Replace `{VERSION}` in the configuration examples below with the actual version number (e.g., `0.1.2`).
 
 ### 3. Configure Kafbat UI
 
@@ -122,7 +122,7 @@ When using S3 topic mappings, create a JSON file with topic-to-message-type mapp
 
 ## ⚡ Features & Roadmap
 
-### Current Version (0.1.1)
+### Current Version (0.1.2)
 - **✅ Deserialization**: Full protobuf message deserialization (binary → JSON)
 - **✅ Serialization**: Full protobuf message serialization (JSON → binary)
 - **✅ Strict Validation**: Unknown JSON fields cause serialization errors

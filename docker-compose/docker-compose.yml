@@ -16,7 +16,7 @@ services:
 
       # Protobuf Descriptor Set Serde configuration
       KAFKA_CLUSTERS_0_SERDE_0_NAME: ProtobufDescriptorSetSerde
-      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-0.1.1.jar
+      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-0.1.2.jar
       KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_DESCRIPTOR_VALUE_FILE: /descriptors/test_descriptors.desc
       # Simple topic-to-message-type mappings (key: value format)
@@ -162,7 +162,7 @@ services:
 
       # Protobuf Descriptor Set Serde with S3 configuration
       KAFKA_CLUSTERS_0_SERDE_0_NAME: ProtobufDescriptorSetSerdeS3
-      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-0.1.1.jar
+      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-0.1.2.jar
       KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
       
       # S3 Configuration using MinIO
@@ -213,7 +213,7 @@ services:
 
       # Protobuf Descriptor Set Serde with S3 configuration
       KAFKA_CLUSTERS_0_SERDE_0_NAME: ProtobufDescriptorSetSerdeS3TopicMapping
-      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-0.1.1.jar
+      KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-0.1.2.jar
       KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
       
       # S3 Configuration for descriptors
