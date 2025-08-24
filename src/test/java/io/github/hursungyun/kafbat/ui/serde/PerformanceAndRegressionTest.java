@@ -191,19 +191,13 @@ class PerformanceAndRegressionTest {
     }
 
     @Test
-    void shouldNotSupportSerialization() throws Exception {
+    void shouldSupportSerialization() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
         configureSerde(descriptorFile);
 
-        // Serialization not supported
-        assertThat(serde.canSerialize("test-topic", Serde.Target.VALUE)).isFalse();
-        assertThat(serde.canSerialize("test-topic", Serde.Target.KEY)).isFalse();
-
-        // Should throw UnsupportedOperationException
-        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
-                .serialize("test"))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("Serialization not implemented");
+        // Serialization now supported for configured message types
+        assertThat(serde.canSerialize("test-topic", Serde.Target.VALUE)).isTrue();
+        assertThat(serde.canSerialize("test-topic", Serde.Target.KEY)).isFalse(); // Keys still not supported
     }
 
     private void configureSerde(Path descriptorFile) {
