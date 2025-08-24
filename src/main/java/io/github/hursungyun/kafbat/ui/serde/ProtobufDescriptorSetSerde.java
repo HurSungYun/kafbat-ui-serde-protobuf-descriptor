@@ -2,9 +2,9 @@ package io.github.hursungyun.kafbat.ui.serde;
 
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.DynamicMessage;
-import com.google.protobuf.util.JsonFormat;
-import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaUtils;
+
+import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufSerializer;
+import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufDeserializer;
 import io.kafbat.ui.serde.api.DeserializeResult;
 import io.kafbat.ui.serde.api.PropertyResolver;
 import io.kafbat.ui.serde.api.SchemaDescription;
@@ -17,7 +17,7 @@ import io.github.hursungyun.kafbat.ui.serde.sources.S3DescriptorSource;
 import io.github.hursungyun.kafbat.ui.serde.sources.S3TopicMappingSource;
 import io.minio.MinioClient;
 
-import java.io.ByteArrayInputStream;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -32,8 +32,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
     private DescriptorSource descriptorSource;
     private S3TopicMappingSource topicMappingSource;
     private PropertyResolver serdeProperties;
-    private JsonFormat.Printer jsonPrinter;
-    private JsonFormat.Parser jsonParser;
+    private ProtobufSerializer protobufSerializer;
+    private ProtobufDeserializer protobufDeserializer;
 
     @Override
     public void configure(PropertyResolver serdeProperties,
@@ -44,7 +44,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
         try {
             initializeDescriptorSources(serdeProperties);
             initializeDescriptors();
-            initializeJsonFormatters();
+            initializeSerializers();
         } catch (IOException | Descriptors.DescriptorValidationException e) {
             String sourceDescription = descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
             throw new RuntimeException("Failed to load protobuf descriptor set from: " + sourceDescription, e);
@@ -63,9 +63,9 @@ public class ProtobufDescriptorSetSerde implements Serde {
         configureTopicMappings(serdeProperties);
     }
 
-    private void initializeJsonFormatters() {
-        this.jsonPrinter = JsonFormat.printer().includingDefaultValueFields();
-        this.jsonParser = JsonFormat.parser();
+    private void initializeSerializers() {
+        this.protobufSerializer = new ProtobufSerializer();
+        this.protobufDeserializer = new ProtobufDeserializer();
     }
 
     private void loadDescriptorSet() throws IOException, Descriptors.DescriptorValidationException {
@@ -230,7 +230,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
             }
             
             try {
-                return serializeWithDescriptor(descriptorOpt.get(), inputString);
+                return protobufSerializer.serialize(descriptorOpt.get(), inputString);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to serialize JSON to protobuf message for topic " + topic 
                         + " with configured message type " + descriptorOpt.get().getFullName(), e);
@@ -246,7 +246,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
             if (specificDescriptor.isPresent()) {
                 // If a specific descriptor is configured, use only that one
                 try {
-                    return deserializeWithDescriptor(specificDescriptor.get(), bytes);
+                    return protobufDeserializer.deserialize(specificDescriptor.get(), bytes);
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to deserialize protobuf message for topic " + topic
                             + " with configured message type " + specificDescriptor.get().getFullName(), e);
@@ -258,43 +258,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
         };
     }
 
-    private DeserializeResult deserializeWithDescriptor(Descriptors.Descriptor messageDescriptor, byte[] bytes) throws Exception {
-        DynamicMessage message = DynamicMessage.parseFrom(messageDescriptor, new ByteArrayInputStream(bytes));
-        byte[] jsonFromProto = ProtobufSchemaUtils.toJson(message);
-        String jsonString = new String(jsonFromProto);
 
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("messageType", messageDescriptor.getFullName());
-        metadata.put("file", messageDescriptor.getFile().getName());
-
-        return new DeserializeResult(
-                jsonString,
-                DeserializeResult.Type.JSON,
-                metadata
-        );
-    }
-
-    private byte[] serializeWithDescriptor(Descriptors.Descriptor messageDescriptor, String jsonInput) throws Exception {
-        // Parse JSON input into DynamicMessage
-        DynamicMessage.Builder messageBuilder = DynamicMessage.newBuilder(messageDescriptor);
-        jsonParser.merge(jsonInput, messageBuilder);
-        DynamicMessage message = messageBuilder.build();
-        
-        // Validate required fields (proto2 only)
-        validateRequiredFields(message, messageDescriptor);
-        
-        // Convert to byte array
-        return message.toByteArray();
-    }
-    
-    private void validateRequiredFields(DynamicMessage message, Descriptors.Descriptor messageDescriptor) {
-        for (Descriptors.FieldDescriptor field : messageDescriptor.getFields()) {
-            if (field.isRequired() && !message.hasField(field)) {
-                throw new IllegalArgumentException(
-                    "Required field '" + field.getName() + "' is missing in message type '" + messageDescriptor.getFullName() + "'");
-            }
-        }
-    }
 
     /**
      * Refresh the descriptor set and topic mappings from source if they support refresh
