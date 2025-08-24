@@ -24,9 +24,9 @@ public class S3CredentialsProvider {
      * @param properties    Property resolver for configuration
      */
     public static void configure(MinioClient.Builder clientBuilder, PropertyResolver properties) {
-        Optional<String> accessKey = properties.getProperty("descriptor.value.s3.access.key", String.class);
-        Optional<String> secretKey = properties.getProperty("descriptor.value.s3.secret.key", String.class);
-        String stsEndpoint = properties.getProperty("descriptor.value.s3.sts.endpoint", String.class)
+        Optional<String> accessKey = properties.getProperty("s3.auth.access.key", String.class);
+        Optional<String> secretKey = properties.getProperty("s3.auth.secret.key", String.class);
+        String stsEndpoint = properties.getProperty("s3.auth.sts.endpoint", String.class)
                 .orElse("https://sts.amazonaws.com");
 
         configureCredentials(clientBuilder, accessKey, secretKey, stsEndpoint);

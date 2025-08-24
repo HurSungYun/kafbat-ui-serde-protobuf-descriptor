@@ -286,7 +286,7 @@ class ProtobufDescriptorSetSerdeTest {
     }
 
     private void mockS3PropertiesEmpty() {
-        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.empty());
         when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.empty());
@@ -431,11 +431,11 @@ class ProtobufDescriptorSetSerdeTest {
                 .thenReturn(Optional.of("test-bucket"));
         when(serdeProperties.getProperty("topic.mapping.value.s3.object.key", String.class))
                 .thenReturn(Optional.of("topic-mappings.json"));
-        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of("http://localhost:9000"));
-        when(serdeProperties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.of("testkey"));
-        when(serdeProperties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("testsecret"));
         
         // Mock other optional S3 properties

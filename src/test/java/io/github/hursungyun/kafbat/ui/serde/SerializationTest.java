@@ -235,7 +235,7 @@ class SerializationTest {
     }
 
     private void mockS3PropertiesEmpty() {
-        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.empty());
         when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.empty());

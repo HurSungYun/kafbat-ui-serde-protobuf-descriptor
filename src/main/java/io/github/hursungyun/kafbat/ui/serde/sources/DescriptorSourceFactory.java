@@ -14,7 +14,7 @@ public class DescriptorSourceFactory {
 
     public static DescriptorSource create(PropertyResolver properties) {
         // Check for S3 configuration first
-        Optional<String> s3Endpoint = properties.getProperty("descriptor.value.s3.endpoint", String.class);
+        Optional<String> s3Endpoint = properties.getProperty("s3.endpoint", String.class);
         Optional<String> s3Bucket = properties.getProperty("descriptor.value.s3.bucket", String.class);
         Optional<String> s3ObjectKey = properties.getProperty("descriptor.value.s3.object.key", String.class);
 
@@ -31,7 +31,7 @@ public class DescriptorSourceFactory {
 
         throw new IllegalArgumentException(
             "Either descriptor.value.file or S3 configuration " +
-            "(descriptor.value.s3.endpoint, descriptor.value.s3.bucket, descriptor.value.s3.object.key) must be provided");
+            "(s3.endpoint + descriptor.value.s3.bucket + descriptor.value.s3.object.key) must be provided");
     }
 
     private static DescriptorSource createS3Source(PropertyResolver properties, String endpoint,

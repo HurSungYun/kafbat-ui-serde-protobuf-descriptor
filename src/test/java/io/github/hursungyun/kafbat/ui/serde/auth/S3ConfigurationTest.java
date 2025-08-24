@@ -26,21 +26,21 @@ class S3ConfigurationTest {
     @Test
     void shouldCreateConfigurationFromValidProperties() {
         // Setup valid S3 properties
-        when(properties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(properties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
         when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
         when(properties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
-        when(properties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(properties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.of("test-access-key"));
-        when(properties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("test-secret-key"));
-        when(properties.getProperty("descriptor.value.s3.region", String.class))
+        when(properties.getProperty("s3.region", String.class))
                 .thenReturn(Optional.of("us-east-1"));
-        when(properties.getProperty("descriptor.value.s3.secure", Boolean.class))
+        when(properties.getProperty("s3.secure", Boolean.class))
                 .thenReturn(Optional.of(false));
-        when(properties.getProperty("descriptor.value.s3.sts.endpoint", String.class))
+        when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.of("https://sts.custom.com"));
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(1800L));
@@ -61,21 +61,21 @@ class S3ConfigurationTest {
     @Test
     void shouldUseDefaultValuesForOptionalProperties() {
         // Setup minimal S3 properties
-        when(properties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(properties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
         when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
         when(properties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
-        when(properties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(properties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.value.s3.region", String.class))
+        when(properties.getProperty("s3.region", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.value.s3.secure", Boolean.class))
+        when(properties.getProperty("s3.secure", Boolean.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.value.s3.sts.endpoint", String.class))
+        when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.empty());
@@ -96,7 +96,7 @@ class S3ConfigurationTest {
     @Test
     void shouldThrowExceptionWhenRequiredPropertiesMissing() {
         // Missing endpoint
-        when(properties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(properties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
@@ -105,12 +105,12 @@ class S3ConfigurationTest {
 
         assertThatThrownBy(() -> S3Configuration.fromProperties(properties))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("descriptor.value.s3.endpoint is required");
+                .hasMessageContaining("s3.endpoint is required");
     }
 
     @Test
     void shouldThrowExceptionWhenBucketMissing() {
-        when(properties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(properties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
         when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.empty());
@@ -124,7 +124,7 @@ class S3ConfigurationTest {
 
     @Test
     void shouldThrowExceptionWhenObjectKeyMissing() {
-        when(properties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(properties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
         when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
@@ -139,8 +139,19 @@ class S3ConfigurationTest {
     @Test
     void shouldSupportCustomPrefix() {
         // Setup properties with custom prefix
-        when(properties.getProperty("custom.prefix.endpoint", String.class))
+        // Global S3 settings
+        when(properties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://custom.endpoint.com"));
+        when(properties.getProperty("s3.region", String.class))
+                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.secure", Boolean.class))
+                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.auth.access.key", String.class))
+                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.auth.secret.key", String.class))
+                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.auth.sts.endpoint", String.class))
+                .thenReturn(Optional.empty());
         when(properties.getProperty("custom.prefix.bucket", String.class))
                 .thenReturn(Optional.of("custom-bucket"));
         when(properties.getProperty("custom.prefix.object.key", String.class))
