@@ -11,9 +11,15 @@ public class ProtobufSerializer {
     
     private final JsonFormat.Parser jsonParser;
     private final ProtobufMessageValidator validator;
+    private final boolean strictFieldValidation;
     
     public ProtobufSerializer() {
-        this.jsonParser = JsonFormat.parser();
+        this(true); // Default to strict mode
+    }
+    
+    public ProtobufSerializer(boolean strictFieldValidation) {
+        this.strictFieldValidation = strictFieldValidation;
+        this.jsonParser = strictFieldValidation ? JsonFormat.parser() : JsonFormat.parser().ignoringUnknownFields();
         this.validator = new ProtobufMessageValidator();
     }
     
@@ -22,18 +28,18 @@ public class ProtobufSerializer {
      * Uses JsonFormat.Parser for JSON → protobuf conversion
      */
     public byte[] serialize(Descriptors.Descriptor messageDescriptor, String jsonInput) throws Exception {
+        // Strict validation if enabled
+        if (strictFieldValidation) {
+            validator.validateAllFieldsPresent(jsonInput, messageDescriptor);
+        }
+        
         // Parse JSON input into DynamicMessage using JsonFormat.Parser
         DynamicMessage.Builder messageBuilder = DynamicMessage.newBuilder(messageDescriptor);
         jsonParser.merge(jsonInput, messageBuilder);
         DynamicMessage message = messageBuilder.build();
         
-        // Validate required fields (proto2 only)
+        // Always validate required fields (proto2 only)
         validator.validateRequiredFields(message, messageDescriptor);
-        
-        // For proto3: validate that JSON contains expected keys (even if values are null)
-        if (messageDescriptor.getFile().getSyntax() == Descriptors.FileDescriptor.Syntax.PROTO3) {
-            validator.validateJsonKeysForProto3(jsonInput, messageDescriptor);
-        }
         
         // Convert to byte array
         return message.toByteArray();

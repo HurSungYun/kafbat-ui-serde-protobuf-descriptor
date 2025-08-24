@@ -34,6 +34,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
     private PropertyResolver serdeProperties;
     private ProtobufSerializer protobufSerializer;
     private ProtobufDeserializer protobufDeserializer;
+    private boolean strictFieldValidation;
 
     @Override
     public void configure(PropertyResolver serdeProperties,
@@ -64,7 +65,11 @@ public class ProtobufDescriptorSetSerde implements Serde {
     }
 
     private void initializeSerializers() {
-        this.protobufSerializer = new ProtobufSerializer();
+        // Check if strict field validation is enabled (default: true)
+        Optional<Boolean> strictModeOpt = serdeProperties.getProperty("serialization.strict.field.validation", Boolean.class);
+        this.strictFieldValidation = strictModeOpt.orElse(true);
+        
+        this.protobufSerializer = new ProtobufSerializer(strictFieldValidation);
         this.protobufDeserializer = new ProtobufDeserializer();
     }
 

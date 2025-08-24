@@ -45,15 +45,17 @@ class SerializationTest {
     @Test
     void shouldSerializeSimpleUserMessage() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
+        configureSerde(descriptorFile, "test.User"); // Use strict mode - all fields are present
 
-        // JSON input for User message
+        // JSON input for User message (ALL fields present - works with strict mode)
         String jsonInput = """
                 {
                     "id": 123,
-                    "name": "Test User",
+                    "name": "Test User", 
                     "email": "test@example.com",
-                    "tags": ["tag1", "tag2"]
+                    "tags": ["tag1", "tag2"],
+                    "type": "REGULAR",
+                    "address": null
                 }
                 """;
 
@@ -72,7 +74,7 @@ class SerializationTest {
     @Test
     void shouldSerializeOrderMessageWithNestedUser() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.Order");
+        configureSerdeWithLenientMode(descriptorFile, "test.Order");
 
         // JSON input for Order message with nested User
         String jsonInput = """
@@ -139,12 +141,12 @@ class SerializationTest {
     void shouldUseTopicSpecificMessageTypes() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
         
-        // Configure with topic-specific mappings
+        // Configure with topic-specific mappings (lenient mode for this test)
         Map<String, String> topicMappings = new HashMap<>();
         topicMappings.put("user-events", "test.User");
         topicMappings.put("order-events", "test.Order");
         
-        configureSerdeWithTopicMappings(descriptorFile, topicMappings);
+        configureSerdeWithTopicMappingsLenient(descriptorFile, topicMappings);
 
         // Test User serialization for user-events topic
         String userJson = """
@@ -176,6 +178,88 @@ class SerializationTest {
     }
 
     @Test
+    void shouldAllowMissingFieldsInLenientMode() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerdeWithLenientMode(descriptorFile, "test.User");
+
+        // JSON missing fields (should work in lenient mode)
+        String incompleteJson = """
+                {
+                    "name": "Valid User",
+                    "email": "user@example.com"
+                }
+                """;
+        
+        // Should succeed in lenient mode (missing fields get default values)
+        byte[] result = serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(incompleteJson);
+        
+        assertThat(result).isNotNull();
+        
+        // Verify missing fields got default values
+        UserProtos.User parsedUser = UserProtos.User.parseFrom(result);
+        assertThat(parsedUser.getId()).isZero(); // Default value
+        assertThat(parsedUser.getName()).isEqualTo("Valid User");
+        assertThat(parsedUser.getEmail()).isEqualTo("user@example.com");
+        assertThat(parsedUser.getTagsList()).isEmpty(); // Default empty
+        assertThat(parsedUser.getType()).isEqualTo(UserProtos.UserType.UNKNOWN); // Default enum
+    }
+
+    @Test
+    void shouldThrowExceptionForMissingFields() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // JSON missing fields (like your eventId case)
+        String jsonWithMissingFields = """
+                {
+                    "name": "Valid User",
+                    "email": "user@example.com"
+                }
+                """;
+        
+        // Should throw exception for missing fields in strict mode (default)
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(jsonWithMissingFields))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldRequireAllFieldsEvenIfNull() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.User");
+
+        // JSON with ALL fields explicitly provided (including nulls)
+        String completeJson = """
+                {
+                    "id": 42,
+                    "name": "Complete User", 
+                    "email": "complete@example.com",
+                    "tags": null,
+                    "type": null,
+                    "address": null
+                }
+                """;
+        
+        // Should succeed because all fields are explicitly provided
+        byte[] result = serde.serializer("test-topic", Serde.Target.VALUE)
+                .serialize(completeJson);
+        
+        assertThat(result).isNotNull();
+        
+        // Verify the result
+        UserProtos.User parsedUser = UserProtos.User.parseFrom(result);
+        assertThat(parsedUser.getId()).isEqualTo(42);
+        assertThat(parsedUser.getName()).isEqualTo("Complete User");
+        assertThat(parsedUser.getEmail()).isEqualTo("complete@example.com");
+        assertThat(parsedUser.getTagsList()).isEmpty(); // null becomes empty list
+        assertThat(parsedUser.getType()).isEqualTo(UserProtos.UserType.UNKNOWN); // null becomes default enum
+        assertThat(parsedUser.hasAddress()).isFalse(); // null nested message
+    }
+
+    @Test
     void shouldSupportSerializationAfterConfiguration() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
         configureSerde(descriptorFile, "test.User");
@@ -183,6 +267,123 @@ class SerializationTest {
         // Should support serialization after configuration
         assertThat(serde.canSerialize("test-topic", Serde.Target.VALUE)).isTrue();
         assertThat(serde.canSerialize("test-topic", Serde.Target.KEY)).isFalse(); // Keys still not supported
+    }
+
+    @Test
+    void shouldEnforceStrictValidationWithTopicMappings() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        // Configure with topic-specific mappings (strict mode)
+        Map<String, String> topicMappings = new HashMap<>();
+        topicMappings.put("user-events", "test.User");
+        topicMappings.put("order-events", "test.Order");
+        
+        configureSerdeWithTopicMappings(descriptorFile, topicMappings);
+
+        // Test incomplete User JSON (missing fields)
+        String incompleteUserJson = """
+                {
+                    "id": 789,
+                    "name": "Incomplete User"
+                }
+                """;
+        
+        // Should throw exception for missing fields in strict mode
+        assertThatThrownBy(() -> serde.serializer("user-events", Serde.Target.VALUE)
+                .serialize(incompleteUserJson))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
+        // Test incomplete Order JSON (missing fields)
+        String incompleteOrderJson = """
+                {
+                    "id": 999,
+                    "totalAmount": 149.99
+                }
+                """;
+        
+        // Should throw exception for missing fields in strict mode
+        assertThatThrownBy(() -> serde.serializer("order-events", Serde.Target.VALUE)
+                .serialize(incompleteOrderJson))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldWorkWithCompleteJsonInTopicMappings() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        // Configure with topic-specific mappings (strict mode)
+        Map<String, String> topicMappings = new HashMap<>();
+        topicMappings.put("user-events", "test.User");
+        topicMappings.put("order-events", "test.Order");
+        
+        configureSerdeWithTopicMappings(descriptorFile, topicMappings);
+
+        // Test complete User JSON (all fields present)
+        String completeUserJson = """
+                {
+                    "id": 789,
+                    "name": "Complete User",
+                    "email": "complete@example.com",
+                    "tags": ["important"],
+                    "type": "ADMIN",
+                    "address": {
+                        "street": "123 Main St",
+                        "city": "Seattle",
+                        "country": "USA",
+                        "zipCode": 98101
+                    }
+                }
+                """;
+        
+        // Should succeed with all fields present
+        byte[] userBytes = serde.serializer("user-events", Serde.Target.VALUE)
+                .serialize(completeUserJson);
+        
+        UserProtos.User parsedUser = UserProtos.User.parseFrom(userBytes);
+        assertThat(parsedUser.getName()).isEqualTo("Complete User");
+        assertThat(parsedUser.getType()).isEqualTo(UserProtos.UserType.ADMIN);
+        assertThat(parsedUser.getAddress().getCity()).isEqualTo("Seattle");
+
+        // Test complete Order JSON (all fields present)
+        String completeOrderJson = """
+                {
+                    "id": 999,
+                    "user": {
+                        "id": 456,
+                        "name": "Order User",
+                        "email": "order@example.com",
+                        "tags": [],
+                        "type": "REGULAR",
+                        "address": null
+                    },
+                    "items": [
+                        {
+                            "productId": "PROD-001",
+                            "productName": "Test Product",
+                            "quantity": 2,
+                            "unitPrice": 75.00
+                        }
+                    ],
+                    "totalAmount": 149.99,
+                    "status": "CONFIRMED",
+                    "createdTimestamp": 1635724800
+                }
+                """;
+        
+        // Should succeed with all fields present
+        byte[] orderBytes = serde.serializer("order-events", Serde.Target.VALUE)
+                .serialize(completeOrderJson);
+        
+        OrderProtos.Order parsedOrder = OrderProtos.Order.parseFrom(orderBytes);
+        assertThat(parsedOrder.getId()).isEqualTo(999);
+        assertThat(parsedOrder.getTotalAmount()).isEqualTo(149.99);
+        assertThat(parsedOrder.getStatus()).isEqualTo(OrderProtos.OrderStatus.CONFIRMED);
+        assertThat(parsedOrder.getItemsCount()).isEqualTo(1);
+        assertThat(parsedOrder.getItems(0).getProductName()).isEqualTo("Test Product");
     }
 
     @Test
@@ -215,14 +416,15 @@ class SerializationTest {
         Path descriptorFile = copyDescriptorSetToTemp();
         configureSerde(descriptorFile, "test.User");
 
-        // JSON with explicit null values for some fields
+        // JSON with explicit null values for some fields (ALL fields present)
         String jsonWithNulls = """
                 {
                     "id": 123,
                     "name": "Test User",
                     "email": null,
                     "tags": null,
-                    "type": null
+                    "type": null,
+                    "address": null
                 }
                 """;
 
@@ -242,7 +444,7 @@ class SerializationTest {
     @Test
     void shouldValidateEnumValues() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
+        configureSerdeWithLenientMode(descriptorFile, "test.User");
 
         // Test valid enum value by name
         String jsonWithValidEnum = """
@@ -263,7 +465,7 @@ class SerializationTest {
     @Test
     void shouldValidateEnumValuesByNumber() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
+        configureSerdeWithLenientMode(descriptorFile, "test.User");
 
         // Test valid enum value by number
         String jsonWithValidEnumNumber = """
@@ -295,11 +497,18 @@ class SerializationTest {
                 }
                 """;
 
-        // Should throw exception for invalid enum value
+        // Should throw exception with detailed enum error message
         assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
                 .serialize(jsonWithInvalidEnum))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to serialize JSON to protobuf message");
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasMessageContaining("test.User")     // Should mention the message type
+                .satisfies(throwable -> {
+                    // Check that it's a serialization error with meaningful context
+                    assertThat(throwable.getMessage())
+                        .contains("topic test-topic")
+                        .contains("message type test.User");
+                });
     }
 
     @Test
@@ -316,17 +525,24 @@ class SerializationTest {
                 }
                 """;
 
-        // Should throw exception for invalid enum number
+        // Should throw exception with detailed enum number error message
         assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
                 .serialize(jsonWithInvalidEnumNumber))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to serialize JSON to protobuf message");
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasMessageContaining("test.User")     // Should mention the message type
+                .satisfies(throwable -> {
+                    // Check that it's a serialization error with meaningful context
+                    assertThat(throwable.getMessage())
+                        .contains("topic test-topic")
+                        .contains("message type test.User");
+                });
     }
 
     @Test
     void shouldHandleOrderWithEnumStatus() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.Order");
+        configureSerdeWithLenientMode(descriptorFile, "test.Order");
 
         // JSON with Order containing enum status
         String jsonWithOrderStatus = """
@@ -439,6 +655,34 @@ class SerializationTest {
                 .thenReturn(Optional.empty());
         when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.of(topicMappings));
+
+        serde.configure(serdeProperties, clusterProperties, appProperties);
+    }
+
+    private void configureSerdeWithLenientMode(Path descriptorFile, String defaultMessageType) {
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
+                .thenReturn(Optional.of(descriptorFile.toString()));
+        mockS3PropertiesEmpty();
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
+                .thenReturn(Optional.of(defaultMessageType));
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
+                .thenReturn(Optional.empty());
+        when(serdeProperties.getProperty("serialization.strict.field.validation", Boolean.class))
+                .thenReturn(Optional.of(false)); // Disable strict validation
+
+        serde.configure(serdeProperties, clusterProperties, appProperties);
+    }
+
+    private void configureSerdeWithTopicMappingsLenient(Path descriptorFile, Map<String, String> topicMappings) {
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
+                .thenReturn(Optional.of(descriptorFile.toString()));
+        mockS3PropertiesEmpty();
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
+                .thenReturn(Optional.empty());
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
+                .thenReturn(Optional.of(topicMappings));
+        when(serdeProperties.getProperty("serialization.strict.field.validation", Boolean.class))
+                .thenReturn(Optional.of(false)); // Disable strict validation
 
         serde.configure(serdeProperties, clusterProperties, appProperties);
     }
