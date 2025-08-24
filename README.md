@@ -52,9 +52,9 @@ kafka:
           className: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
           filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-{VERSION}.jar
           properties:
-            protobuf.descriptor.set.file: /path/to/your/descriptors.desc
-            protobuf.message.name: "your.package.DefaultMessage"
-            protobuf.topic.message.map:
+            descriptor.file: /path/to/your/descriptors.desc
+            message.default.type: "your.package.DefaultMessage"
+            topic.mapping.local:
               user-events: "your.package.User"
               order-events: "your.package.Order"
 ```
@@ -71,23 +71,23 @@ kafka:
           filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-{VERSION}.jar
           properties:
             # S3 Configuration
-            protobuf.s3.endpoint: "https://s3.amazonaws.com"
-            protobuf.s3.bucket: "my-protobuf-descriptors"
-            protobuf.s3.object.key: "descriptors/my-app.desc"
-            protobuf.s3.access.key: "YOUR_ACCESS_KEY"
-            protobuf.s3.secret.key: "YOUR_SECRET_KEY"
-            protobuf.s3.region: "us-east-1"
-            protobuf.s3.refresh.interval.seconds: 300
+            descriptor.s3.endpoint: "https://s3.amazonaws.com"
+            descriptor.s3.bucket: "my-protobuf-descriptors"
+            descriptor.s3.object.key: "descriptors/my-app.desc"
+            descriptor.s3.access.key: "YOUR_ACCESS_KEY"
+            descriptor.s3.secret.key: "YOUR_SECRET_KEY"
+            descriptor.s3.region: "us-east-1"
+            descriptor.s3.refresh.interval.seconds: 300
             
             # Message Configuration
-            protobuf.message.name: "your.package.DefaultMessage"
+            message.default.type: "your.package.DefaultMessage"
             
             # S3 Topic Mapping (optional)
-            protobuf.topic.message.map.s3.bucket: "my-protobuf-descriptors"
-            protobuf.topic.message.map.s3.object.key: "topic-mappings.json"
+            topic.mapping.s3.bucket: "my-protobuf-descriptors"
+            topic.mapping.s3.object.key: "topic-mappings.json"
             
             # Local Topic Mapping (overrides S3 config)
-            protobuf.topic.message.map:
+            topic.mapping.local:
               user-events: "your.package.User"
               order-events: "your.package.Order"
 ```
@@ -120,19 +120,37 @@ kafka:
           filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-{VERSION}.jar
           properties:
             # S3 Configuration using IAM roles (no access keys needed)
-            protobuf.s3.endpoint: "https://s3.ap-northeast-2.amazonaws.com"
-            protobuf.s3.bucket: "my-protobuf-descriptors"
-            protobuf.s3.object.key: "descriptors/my-app.desc"
-            protobuf.s3.region: "ap-northeast-2"
-            protobuf.s3.sts.endpoint: "https://sts.amazonaws.com"  # Optional: STS endpoint for IRSA
-            protobuf.s3.refresh.interval.seconds: 6000
+            descriptor.s3.endpoint: "https://s3.ap-northeast-2.amazonaws.com"
+            descriptor.s3.bucket: "my-protobuf-descriptors"
+            descriptor.s3.object.key: "descriptors/my-app.desc"
+            descriptor.s3.region: "ap-northeast-2"
+            descriptor.s3.sts.endpoint: "https://sts.amazonaws.com"  # Optional: STS endpoint for IRSA
+            descriptor.s3.refresh.interval.seconds: 6000
             
             # Topic mappings from local configuration
-            protobuf.topic.message.map:
+            topic.mapping.local:
               "my-topic": "my.package.MyMessage"
 ```
 
 ## Configuration Properties
+
+### ✨ **New Clean Configuration Structure (v0.1.0+)**
+
+The configuration uses a logical, hierarchical structure:
+
+```yaml
+properties:
+  # Descriptor source (choose one)
+  descriptor.file: "path/to/file.desc"        # Local file
+  descriptor.s3.*                              # S3 source settings
+  
+  # Message configuration  
+  message.default.type: "com.example.Message" # Default message type
+  
+  # Topic mapping (choose one or both)
+  topic.mapping.local.*                        # Local topic mappings
+  topic.mapping.s3.*                           # S3-based topic mappings
+```
 
 ### Required Properties
 
@@ -140,26 +158,26 @@ kafka:
 
 | Property | Description |
 |----------|-------------|
-| `protobuf.descriptor.set.file` | Path to local protobuf descriptor set file |
-| `protobuf.s3.endpoint` | S3 endpoint URL (e.g., https://s3.amazonaws.com) |
-| `protobuf.s3.bucket` | S3 bucket name containing the descriptor set |
-| `protobuf.s3.object.key` | S3 object key (path) to the descriptor set file |
-| `protobuf.s3.access.key` | S3 access key (optional - uses IAM roles if not provided) |
-| `protobuf.s3.secret.key` | S3 secret key (optional - uses IAM roles if not provided) |
-| `protobuf.s3.sts.endpoint` | STS endpoint for IRSA (default: https://sts.amazonaws.com) |
+| `descriptor.file` | Path to local protobuf descriptor set file |
+| `descriptor.s3.endpoint` | S3 endpoint URL (e.g., https://s3.amazonaws.com) |
+| `descriptor.s3.bucket` | S3 bucket name containing the descriptor set |
+| `descriptor.s3.object.key` | S3 object key (path) to the descriptor set file |
+| `descriptor.s3.access.key` | S3 access key (optional - uses IAM roles if not provided) |
+| `descriptor.s3.secret.key` | S3 secret key (optional - uses IAM roles if not provided) |
+| `descriptor.s3.sts.endpoint` | STS endpoint for IRSA (default: https://sts.amazonaws.com) |
 
 ### Optional Properties
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `protobuf.message.name` | - | Default message type for all topics |
-| `protobuf.topic.message.map.*` | - | Topic-specific message type mapping (overrides S3 config) |
-| `protobuf.topic.message.map.s3.bucket` | - | S3 bucket containing topic mapping JSON file |
-| `protobuf.topic.message.map.s3.object.key` | - | S3 object key for topic mapping JSON file |
-| `protobuf.s3.region` | - | S3 region (if required by your provider) |
-| `protobuf.s3.secure` | `true` | Use HTTPS (set to false for HTTP endpoints) |
-| `protobuf.s3.sts.endpoint` | `https://sts.amazonaws.com` | STS endpoint for IRSA authentication |
-| `protobuf.s3.refresh.interval.seconds` | `300` | How often to check for descriptor updates |
+| `message.default.type` | - | Default message type for all topics |
+| `topic.mapping.local.*` | - | Topic-specific message type mapping (overrides S3 config) |
+| `topic.mapping.s3.bucket` | - | S3 bucket containing topic mapping JSON file |
+| `topic.mapping.s3.object.key` | - | S3 object key for topic mapping JSON file |
+| `descriptor.s3.region` | - | S3 region (if required by your provider) |
+| `descriptor.s3.secure` | `true` | Use HTTPS (set to false for HTTP endpoints) |
+| `descriptor.s3.sts.endpoint` | `https://sts.amazonaws.com` | STS endpoint for IRSA authentication |
+| `descriptor.s3.refresh.interval.seconds` | `300` | How often to check for descriptor updates |
 
 ## Support
 

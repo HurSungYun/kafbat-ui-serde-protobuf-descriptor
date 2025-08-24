@@ -14,9 +14,9 @@ public class DescriptorSourceFactory {
 
     public static DescriptorSource create(PropertyResolver properties) {
         // Check for S3 configuration first
-        Optional<String> s3Endpoint = properties.getProperty("protobuf.s3.endpoint", String.class);
-        Optional<String> s3Bucket = properties.getProperty("protobuf.s3.bucket", String.class);
-        Optional<String> s3ObjectKey = properties.getProperty("protobuf.s3.object.key", String.class);
+        Optional<String> s3Endpoint = properties.getProperty("descriptor.s3.endpoint", String.class);
+        Optional<String> s3Bucket = properties.getProperty("descriptor.s3.bucket", String.class);
+        Optional<String> s3ObjectKey = properties.getProperty("descriptor.s3.object.key", String.class);
 
         if (s3Endpoint.isPresent() && s3Bucket.isPresent() && s3ObjectKey.isPresent()) {
             // S3 configuration found
@@ -24,14 +24,14 @@ public class DescriptorSourceFactory {
         }
 
         // Fall back to local file
-        Optional<String> filePath = properties.getProperty("protobuf.descriptor.set.file", String.class);
+        Optional<String> filePath = properties.getProperty("descriptor.file", String.class);
         if (filePath.isPresent()) {
             return new LocalFileDescriptorSource(filePath.get());
         }
 
         throw new IllegalArgumentException(
-            "Either protobuf.descriptor.set.file or S3 configuration " +
-            "(protobuf.s3.endpoint, protobuf.s3.bucket, protobuf.s3.object.key) must be provided");
+            "Either descriptor.file or S3 configuration " +
+            "(descriptor.s3.endpoint, descriptor.s3.bucket, descriptor.s3.object.key) must be provided");
     }
 
     private static DescriptorSource createS3Source(PropertyResolver properties, String endpoint,

@@ -91,8 +91,8 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     private S3TopicMappingSource createTopicMappingSource(PropertyResolver properties) {
         // Check for S3 topic mapping configuration
-        Optional<String> s3Bucket = properties.getProperty("protobuf.topic.message.map.s3.bucket", String.class);
-        Optional<String> s3ObjectKey = properties.getProperty("protobuf.topic.message.map.s3.object.key", String.class);
+        Optional<String> s3Bucket = properties.getProperty("topic.mapping.s3.bucket", String.class);
+        Optional<String> s3ObjectKey = properties.getProperty("topic.mapping.s3.object.key", String.class);
 
         if (s3Bucket.isPresent() && s3ObjectKey.isPresent()) {
             // Use existing S3 configuration from descriptor source
@@ -102,7 +102,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
             } else {
                 // Check if we have S3 credentials in properties
-                Optional<String> s3Endpoint = properties.getProperty("protobuf.s3.endpoint", String.class);
+                Optional<String> s3Endpoint = properties.getProperty("descriptor.s3.endpoint", String.class);
                 if (s3Endpoint.isPresent()) {
                     return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
                 }
@@ -123,7 +123,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
     }
 
     private void configureTopicMappings(PropertyResolver serdeProperties) {
-        Optional<String> defaultMessageName = serdeProperties.getProperty("protobuf.message.name", String.class);
+        Optional<String> defaultMessageName = serdeProperties.getProperty("message.default.type", String.class);
         Map<String, String> combinedTopicMappings = loadCombinedTopicMappings(serdeProperties);
         Map<String, Descriptors.Descriptor> allDescriptors = buildDescriptorMap();
         
@@ -146,7 +146,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
         // Get topic-specific message mappings from local configuration (overrides S3)
         Optional<Map<String, String>> localTopicMessageMappings =
-                serdeProperties.getMapProperty("protobuf.topic.message.map", String.class, String.class);
+                serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class);
         if (localTopicMessageMappings.isPresent()) {
             combinedTopicMappings.putAll(localTopicMessageMappings.get());
         }
