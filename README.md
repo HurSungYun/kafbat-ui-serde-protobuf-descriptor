@@ -22,6 +22,7 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 ## Features
 
 - **🔍 Protobuf Message Visualization**: Transform binary protobuf messages into readable JSON in Kafbat UI
+- **📝 Message Production**: Create protobuf messages from JSON in Kafka UI (full serialization support)
 - **📋 Descriptor Set Support**: Use compiled protobuf descriptor sets (`.desc` files) for schema definitions
 - **🎯 Topic-Specific Mapping**: Configure different protobuf message types for different Kafka topics
 - **📁 Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, MinIO)
@@ -122,12 +123,11 @@ When using S3 topic mappings, create a JSON file with topic-to-message-type mapp
 ## ⚡ Current Limitations & Roadmap
 
 ### Current Version (0.1.0)
-- **✅ Deserialization**: Full protobuf message deserialization support
-- **❌ Serialization**: Not yet supported (read-only mode)
+- **✅ Deserialization**: Full protobuf message deserialization (binary → JSON)
+- **✅ Serialization**: Full protobuf message serialization (JSON → binary)
 - **❌ Key/Value Separation**: Currently only supports message values, not keys
 
 ### Planned Features (v0.2.0+)
-- **🚀 Serialization Support**: Enable message production from Kafka UI
 - **🔑 Key Support**: Separate protobuf types for message keys and values
 
 #### S3 IAM Role-based Authentication (IRSA)

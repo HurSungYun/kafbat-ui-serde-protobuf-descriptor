@@ -65,7 +65,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     private void initializeJsonFormatters() {
         this.jsonPrinter = JsonFormat.printer().includingDefaultValueFields();
-        this.jsonParser = JsonFormat.parser();
+        this.jsonParser = JsonFormat.parser().ignoringUnknownFields();
     }
 
     private void loadDescriptorSet() throws IOException, Descriptors.DescriptorValidationException {
@@ -216,14 +216,25 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     @Override
     public boolean canSerialize(String topic, Target target) {
-        // This serde only supports deserialization
-        return false;
+        // Support serialization for topics with configured message types
+        return descriptorFor(topic, target).isPresent();
     }
 
     @Override
     public Serializer serializer(String topic, Target target) {
         return inputString -> {
-            throw new UnsupportedOperationException("Serialization not implemented for ProtobufDescriptorSetSerde");
+            // Get the descriptor for this topic
+            Optional<Descriptors.Descriptor> descriptorOpt = descriptorFor(topic, target);
+            if (descriptorOpt.isEmpty()) {
+                throw new IllegalStateException("No message type configured for topic: " + topic + ", target: " + target);
+            }
+            
+            try {
+                return serializeWithDescriptor(descriptorOpt.get(), inputString);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to serialize JSON to protobuf message for topic " + topic 
+                        + " with configured message type " + descriptorOpt.get().getFullName(), e);
+            }
         };
     }
 
@@ -261,6 +272,16 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 DeserializeResult.Type.JSON,
                 metadata
         );
+    }
+
+    private byte[] serializeWithDescriptor(Descriptors.Descriptor messageDescriptor, String jsonInput) throws Exception {
+        // Parse JSON input into DynamicMessage
+        DynamicMessage.Builder messageBuilder = DynamicMessage.newBuilder(messageDescriptor);
+        jsonParser.merge(jsonInput, messageBuilder);
+        DynamicMessage message = messageBuilder.build();
+        
+        // Convert to byte array
+        return message.toByteArray();
     }
 
     /**

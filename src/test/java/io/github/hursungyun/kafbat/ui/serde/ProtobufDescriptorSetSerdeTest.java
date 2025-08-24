@@ -105,7 +105,7 @@ class ProtobufDescriptorSetSerdeTest {
         
         // After configuration - descriptors loaded with default message type
         assertThat(serde.canDeserialize("test-topic", Serde.Target.VALUE)).isTrue();
-        assertThat(serde.canSerialize("test-topic", Serde.Target.VALUE)).isFalse(); // Still false - no serialization support
+        assertThat(serde.canSerialize("test-topic", Serde.Target.VALUE)).isTrue(); // Now supports serialization
     }
 
     @Test
