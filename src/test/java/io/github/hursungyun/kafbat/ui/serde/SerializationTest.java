@@ -270,6 +270,123 @@ class SerializationTest {
     }
 
     @Test
+    void shouldEnforceStrictValidationWithTopicMappings() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        // Configure with topic-specific mappings (strict mode)
+        Map<String, String> topicMappings = new HashMap<>();
+        topicMappings.put("user-events", "test.User");
+        topicMappings.put("order-events", "test.Order");
+        
+        configureSerdeWithTopicMappings(descriptorFile, topicMappings);
+
+        // Test incomplete User JSON (missing fields)
+        String incompleteUserJson = """
+                {
+                    "id": 789,
+                    "name": "Incomplete User"
+                }
+                """;
+        
+        // Should throw exception for missing fields in strict mode
+        assertThatThrownBy(() -> serde.serializer("user-events", Serde.Target.VALUE)
+                .serialize(incompleteUserJson))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
+        // Test incomplete Order JSON (missing fields)
+        String incompleteOrderJson = """
+                {
+                    "id": 999,
+                    "totalAmount": 149.99
+                }
+                """;
+        
+        // Should throw exception for missing fields in strict mode
+        assertThatThrownBy(() -> serde.serializer("order-events", Serde.Target.VALUE)
+                .serialize(incompleteOrderJson))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldWorkWithCompleteJsonInTopicMappings() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        
+        // Configure with topic-specific mappings (strict mode)
+        Map<String, String> topicMappings = new HashMap<>();
+        topicMappings.put("user-events", "test.User");
+        topicMappings.put("order-events", "test.Order");
+        
+        configureSerdeWithTopicMappings(descriptorFile, topicMappings);
+
+        // Test complete User JSON (all fields present)
+        String completeUserJson = """
+                {
+                    "id": 789,
+                    "name": "Complete User",
+                    "email": "complete@example.com",
+                    "tags": ["important"],
+                    "type": "ADMIN",
+                    "address": {
+                        "street": "123 Main St",
+                        "city": "Seattle",
+                        "country": "USA",
+                        "zipCode": 98101
+                    }
+                }
+                """;
+        
+        // Should succeed with all fields present
+        byte[] userBytes = serde.serializer("user-events", Serde.Target.VALUE)
+                .serialize(completeUserJson);
+        
+        UserProtos.User parsedUser = UserProtos.User.parseFrom(userBytes);
+        assertThat(parsedUser.getName()).isEqualTo("Complete User");
+        assertThat(parsedUser.getType()).isEqualTo(UserProtos.UserType.ADMIN);
+        assertThat(parsedUser.getAddress().getCity()).isEqualTo("Seattle");
+
+        // Test complete Order JSON (all fields present)
+        String completeOrderJson = """
+                {
+                    "id": 999,
+                    "user": {
+                        "id": 456,
+                        "name": "Order User",
+                        "email": "order@example.com",
+                        "tags": [],
+                        "type": "REGULAR",
+                        "address": null
+                    },
+                    "items": [
+                        {
+                            "productId": "PROD-001",
+                            "productName": "Test Product",
+                            "quantity": 2,
+                            "unitPrice": 75.00
+                        }
+                    ],
+                    "totalAmount": 149.99,
+                    "status": "CONFIRMED",
+                    "createdTimestamp": 1635724800
+                }
+                """;
+        
+        // Should succeed with all fields present
+        byte[] orderBytes = serde.serializer("order-events", Serde.Target.VALUE)
+                .serialize(completeOrderJson);
+        
+        OrderProtos.Order parsedOrder = OrderProtos.Order.parseFrom(orderBytes);
+        assertThat(parsedOrder.getId()).isEqualTo(999);
+        assertThat(parsedOrder.getTotalAmount()).isEqualTo(149.99);
+        assertThat(parsedOrder.getStatus()).isEqualTo(OrderProtos.OrderStatus.CONFIRMED);
+        assertThat(parsedOrder.getItemsCount()).isEqualTo(1);
+        assertThat(parsedOrder.getItems(0).getProductName()).isEqualTo("Test Product");
+    }
+
+    @Test
     void shouldThrowExceptionWhenNoMessageTypeConfigured() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
         
