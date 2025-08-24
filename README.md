@@ -134,24 +134,6 @@ kafka:
 
 ## Configuration Properties
 
-### ✨ **New Clean Configuration Structure (v0.0.9+)**
-
-The configuration uses a logical, hierarchical structure:
-
-```yaml
-properties:
-  # Descriptor source (choose one)
-  descriptor.file: "path/to/file.desc"        # Local file
-  descriptor.s3.*                              # S3 source settings
-  
-  # Message configuration  
-  message.default.type: "com.example.Message" # Default message type
-  
-  # Topic mapping (choose one or both)
-  topic.mapping.local.*                        # Local topic mappings
-  topic.mapping.s3.*                           # S3-based topic mappings
-```
-
 ### Required Properties
 
 **Either local file OR S3 configuration must be provided. S3 takes precedence if both are specified.**
