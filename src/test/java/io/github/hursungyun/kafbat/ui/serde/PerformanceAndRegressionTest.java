@@ -129,12 +129,12 @@ class PerformanceAndRegressionTest {
         Path descriptorFile = copyDescriptorSetToTemp();
         
         // Configure without default message type or topic mappings
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
         mockS3PropertiesEmpty();
-        when(serdeProperties.getProperty("message.default.type", String.class))
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
                 .thenReturn(Optional.empty());
-        when(serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class))
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
 
         serde.configure(serdeProperties, clusterProperties, appProperties);
@@ -201,23 +201,23 @@ class PerformanceAndRegressionTest {
     }
 
     private void configureSerde(Path descriptorFile) {
-        when(serdeProperties.getProperty("descriptor.file", String.class))
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of(descriptorFile.toString()));
         mockS3PropertiesEmpty();
-        when(serdeProperties.getProperty("message.default.type", String.class))
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
                 .thenReturn(Optional.of("test.User"));
-        when(serdeProperties.getMapProperty("topic.mapping.local", String.class, String.class))
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
 
         serde.configure(serdeProperties, clusterProperties, appProperties);
     }
 
     private void mockS3PropertiesEmpty() {
-        when(serdeProperties.getProperty("descriptor.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
                 .thenReturn(Optional.empty());
-        when(serdeProperties.getProperty("descriptor.s3.bucket", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.empty());
-        when(serdeProperties.getProperty("descriptor.s3.object.key", String.class))
+        when(serdeProperties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.empty());
     }
 

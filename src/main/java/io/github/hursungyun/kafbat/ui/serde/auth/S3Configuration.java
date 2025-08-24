@@ -40,7 +40,7 @@ public class S3Configuration {
      * Create S3 configuration from properties with standard prefixes
      */
     public static S3Configuration fromProperties(PropertyResolver properties) {
-        return fromProperties(properties, "descriptor.s3");
+        return fromProperties(properties, "descriptor.value.s3");
     }
 
     /**
