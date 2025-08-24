@@ -45,7 +45,7 @@ class SerializationTest {
     @Test
     void shouldSerializeSimpleUserMessage() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
+        configureSerdeWithLenientMode(descriptorFile, "test.User");
 
         // JSON input for User message (ALL fields required)
         String jsonInput = """
@@ -74,7 +74,7 @@ class SerializationTest {
     @Test
     void shouldSerializeOrderMessageWithNestedUser() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.Order");
+        configureSerdeWithLenientMode(descriptorFile, "test.Order");
 
         // JSON input for Order message with nested User
         String jsonInput = """
@@ -141,12 +141,12 @@ class SerializationTest {
     void shouldUseTopicSpecificMessageTypes() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
         
-        // Configure with topic-specific mappings
+        // Configure with topic-specific mappings (lenient mode for this test)
         Map<String, String> topicMappings = new HashMap<>();
         topicMappings.put("user-events", "test.User");
         topicMappings.put("order-events", "test.Order");
         
-        configureSerdeWithTopicMappings(descriptorFile, topicMappings);
+        configureSerdeWithTopicMappingsLenient(descriptorFile, topicMappings);
 
         // Test User serialization for user-events topic
         String userJson = """
@@ -297,7 +297,7 @@ class SerializationTest {
     @Test
     void shouldHandleJsonWithNullValues() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
+        configureSerdeWithLenientMode(descriptorFile, "test.User");
 
         // JSON with explicit null values for some fields
         String jsonWithNulls = """
@@ -326,7 +326,7 @@ class SerializationTest {
     @Test
     void shouldValidateEnumValues() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
+        configureSerdeWithLenientMode(descriptorFile, "test.User");
 
         // Test valid enum value by name
         String jsonWithValidEnum = """
@@ -347,7 +347,7 @@ class SerializationTest {
     @Test
     void shouldValidateEnumValuesByNumber() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.User");
+        configureSerdeWithLenientMode(descriptorFile, "test.User");
 
         // Test valid enum value by number
         String jsonWithValidEnumNumber = """
@@ -410,7 +410,7 @@ class SerializationTest {
     @Test
     void shouldHandleOrderWithEnumStatus() throws Exception {
         Path descriptorFile = copyDescriptorSetToTemp();
-        configureSerde(descriptorFile, "test.Order");
+        configureSerdeWithLenientMode(descriptorFile, "test.Order");
 
         // JSON with Order containing enum status
         String jsonWithOrderStatus = """
@@ -535,6 +535,20 @@ class SerializationTest {
                 .thenReturn(Optional.of(defaultMessageType));
         when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.empty());
+        when(serdeProperties.getProperty("serialization.strict.field.validation", Boolean.class))
+                .thenReturn(Optional.of(false)); // Disable strict validation
+
+        serde.configure(serdeProperties, clusterProperties, appProperties);
+    }
+
+    private void configureSerdeWithTopicMappingsLenient(Path descriptorFile, Map<String, String> topicMappings) {
+        when(serdeProperties.getProperty("descriptor.value.file", String.class))
+                .thenReturn(Optional.of(descriptorFile.toString()));
+        mockS3PropertiesEmpty();
+        when(serdeProperties.getProperty("message.value.default.type", String.class))
+                .thenReturn(Optional.empty());
+        when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
+                .thenReturn(Optional.of(topicMappings));
         when(serdeProperties.getProperty("serialization.strict.field.validation", Boolean.class))
                 .thenReturn(Optional.of(false)); // Disable strict validation
 
