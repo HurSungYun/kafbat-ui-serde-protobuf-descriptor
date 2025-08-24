@@ -26,23 +26,23 @@ class S3ConfigurationTest {
     @Test
     void shouldCreateConfigurationFromValidProperties() {
         // Setup valid S3 properties
-        when(properties.getProperty("protobuf.s3.endpoint", String.class))
+        when(properties.getProperty("descriptor.s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
-        when(properties.getProperty("protobuf.s3.bucket", String.class))
+        when(properties.getProperty("descriptor.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
-        when(properties.getProperty("protobuf.s3.object.key", String.class))
+        when(properties.getProperty("descriptor.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
-        when(properties.getProperty("protobuf.s3.access.key", String.class))
+        when(properties.getProperty("descriptor.s3.access.key", String.class))
                 .thenReturn(Optional.of("test-access-key"));
-        when(properties.getProperty("protobuf.s3.secret.key", String.class))
+        when(properties.getProperty("descriptor.s3.secret.key", String.class))
                 .thenReturn(Optional.of("test-secret-key"));
-        when(properties.getProperty("protobuf.s3.region", String.class))
+        when(properties.getProperty("descriptor.s3.region", String.class))
                 .thenReturn(Optional.of("us-east-1"));
-        when(properties.getProperty("protobuf.s3.secure", Boolean.class))
+        when(properties.getProperty("descriptor.s3.secure", Boolean.class))
                 .thenReturn(Optional.of(false));
-        when(properties.getProperty("protobuf.s3.sts.endpoint", String.class))
+        when(properties.getProperty("descriptor.s3.sts.endpoint", String.class))
                 .thenReturn(Optional.of("https://sts.custom.com"));
-        when(properties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class))
+        when(properties.getProperty("descriptor.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(1800L));
 
         S3Configuration config = S3Configuration.fromProperties(properties);
@@ -61,23 +61,23 @@ class S3ConfigurationTest {
     @Test
     void shouldUseDefaultValuesForOptionalProperties() {
         // Setup minimal S3 properties
-        when(properties.getProperty("protobuf.s3.endpoint", String.class))
+        when(properties.getProperty("descriptor.s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
-        when(properties.getProperty("protobuf.s3.bucket", String.class))
+        when(properties.getProperty("descriptor.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
-        when(properties.getProperty("protobuf.s3.object.key", String.class))
+        when(properties.getProperty("descriptor.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
-        when(properties.getProperty("protobuf.s3.access.key", String.class))
+        when(properties.getProperty("descriptor.s3.access.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("protobuf.s3.secret.key", String.class))
+        when(properties.getProperty("descriptor.s3.secret.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("protobuf.s3.region", String.class))
+        when(properties.getProperty("descriptor.s3.region", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("protobuf.s3.secure", Boolean.class))
+        when(properties.getProperty("descriptor.s3.secure", Boolean.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("protobuf.s3.sts.endpoint", String.class))
+        when(properties.getProperty("descriptor.s3.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("protobuf.s3.refresh.interval.seconds", Long.class))
+        when(properties.getProperty("descriptor.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.empty());
 
         S3Configuration config = S3Configuration.fromProperties(properties);
@@ -96,44 +96,44 @@ class S3ConfigurationTest {
     @Test
     void shouldThrowExceptionWhenRequiredPropertiesMissing() {
         // Missing endpoint
-        when(properties.getProperty("protobuf.s3.endpoint", String.class))
+        when(properties.getProperty("descriptor.s3.endpoint", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("protobuf.s3.bucket", String.class))
+        when(properties.getProperty("descriptor.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
-        when(properties.getProperty("protobuf.s3.object.key", String.class))
+        when(properties.getProperty("descriptor.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
 
         assertThatThrownBy(() -> S3Configuration.fromProperties(properties))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("protobuf.s3.endpoint is required");
+                .hasMessageContaining("descriptor.s3.endpoint is required");
     }
 
     @Test
     void shouldThrowExceptionWhenBucketMissing() {
-        when(properties.getProperty("protobuf.s3.endpoint", String.class))
+        when(properties.getProperty("descriptor.s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
-        when(properties.getProperty("protobuf.s3.bucket", String.class))
+        when(properties.getProperty("descriptor.s3.bucket", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("protobuf.s3.object.key", String.class))
+        when(properties.getProperty("descriptor.s3.object.key", String.class))
                 .thenReturn(Optional.of("test-object.desc"));
 
         assertThatThrownBy(() -> S3Configuration.fromProperties(properties))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("protobuf.s3.bucket is required");
+                .hasMessageContaining("descriptor.s3.bucket is required");
     }
 
     @Test
     void shouldThrowExceptionWhenObjectKeyMissing() {
-        when(properties.getProperty("protobuf.s3.endpoint", String.class))
+        when(properties.getProperty("descriptor.s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://s3.amazonaws.com"));
-        when(properties.getProperty("protobuf.s3.bucket", String.class))
+        when(properties.getProperty("descriptor.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
-        when(properties.getProperty("protobuf.s3.object.key", String.class))
+        when(properties.getProperty("descriptor.s3.object.key", String.class))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> S3Configuration.fromProperties(properties))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("protobuf.s3.object.key is required");
+                .hasMessageContaining("descriptor.s3.object.key is required");
     }
 
     @Test

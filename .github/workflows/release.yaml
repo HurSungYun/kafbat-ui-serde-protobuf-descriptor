@@ -23,6 +23,25 @@ jobs:
       - name: Configure Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Extracted version: $TAG"
+
+      - name: Validate version consistency
+        run: |
+          GRADLE_VERSION=$(./gradlew properties --no-daemon -q | grep "version:" | awk '{print $2}')
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          echo "Gradle version: $GRADLE_VERSION"
+          echo "Tag version: $TAG_VERSION"
+          if [ "$GRADLE_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch: build.gradle has '$GRADLE_VERSION' but tag is 'v$TAG_VERSION'"
+            exit 1
+          fi
+          echo "✅ Version consistency validated: $GRADLE_VERSION"
+
       - name: Build (shadow jar)
         run: ./gradlew --no-daemon clean build
 
@@ -31,12 +50,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          jar_path="$(ls build/libs/*-all.jar 2>/dev/null | head -n1 || true)"
-          if [ -z "$jar_path" ]; then
-            jar_path="$(ls build/libs/*.jar | head -n1)"
-          fi
+          # Look for the main JAR file (shadowJar creates files without classifier)
+          jar_path="$(ls build/libs/*.jar | head -n1)"
           echo "jar_path=$jar_path" >> "$GITHUB_OUTPUT"
-          echo "Found: $jar_path"
+          echo "Found JAR: $jar_path"
+          
+          # Validate the JAR name includes the correct version
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$jar_path" != *"$VERSION"* ]]; then
+            echo "❌ JAR filename '$jar_path' does not contain version '$VERSION'"
+            exit 1
+          fi
+          echo "✅ JAR filename validation passed"
 
       - name: Compute SHA256
         run: |
@@ -63,23 +88,39 @@ jobs:
           name: dist
           path: dist
 
-      - name: Normalize filenames with tag
+      - name: Prepare release artifacts
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF#refs/tags/}"
           JAR="$(ls dist/*.jar | head -n1)"
-          BASENAME="$(basename "$JAR" .jar)"
-          mv "$JAR" "dist/${BASENAME}-${TAG}.jar"
-          sha256sum "dist/${BASENAME}-${TAG}.jar" > dist/SHASUMS256.txt
+          echo "Release JAR: $JAR"
+          
+          # JAR already has correct version in filename, no need to modify
+          # Just generate checksums
+          (cd dist && sha256sum "$(basename "$JAR")" > SHASUMS256.txt)
+          
+          echo "✅ Release artifacts prepared:"
+          ls -la dist/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') }}
+          body: |
+            ## Kafka UI Protobuf Descriptor Set Serde ${{ github.ref_name }}
+            
+            ### 📦 Artifacts
+            - **JAR File**: `kafbat-ui-serde-protobuf-descriptor-${{ steps.version.outputs.version }}.jar`
+            - **Checksum**: `SHASUMS256.txt`
+            
+            ### 🚀 Usage
+            Download the JAR file and configure it in your Kafka UI setup as described in the README.
+            
+            ### 🔍 Verification
+            Verify the download integrity using the provided SHA256 checksum.
           files: |
             dist/*.jar
             dist/SHASUMS256.txt
