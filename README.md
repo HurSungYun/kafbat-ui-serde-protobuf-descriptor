@@ -2,6 +2,19 @@
 
 A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafbat/kafka-ui) that allows deserializing protobuf messages using a protobuf descriptor set file.
 
+## 📋 Requirements
+
+- **Java 17+** (required by Kafbat UI Serde API)
+- **Kafbat UI >= 0.7.0** (serde-api 1.0.0+)
+
+## 🔗 Compatibility Matrix
+
+| Plugin Version | Kafbat UI Version | Serde API Version | Java Version |
+|---------------|-------------------|-------------------|--------------|
+| 0.1.0+        | >= 0.7.0          | 1.0.0            | 17+          |
+
+**Note**: This plugin uses `io.kafbat.ui:serde-api:1.0.0` from Maven Central.
+
 ## Demo
 
 ![Demo](demo.gif)
@@ -104,7 +117,18 @@ When using S3 topic mappings, create a JSON file with topic-to-message-type mapp
 }
 ```
 
-**Note**: Local `protobuf.topic.message.map` configuration always overrides S3 topic mappings.
+**Note**: Local `topic.mapping.local` configuration always overrides S3 topic mappings.
+
+## ⚡ Current Limitations & Roadmap
+
+### Current Version (0.1.0)
+- **✅ Deserialization**: Full protobuf message deserialization support
+- **❌ Serialization**: Not yet supported (read-only mode)
+- **❌ Key/Value Separation**: Currently only supports message values, not keys
+
+### Planned Features (v0.2.0+)
+- **🚀 Serialization Support**: Enable message production from Kafka UI
+- **🔑 Key Support**: Separate protobuf types for message keys and values
 
 #### S3 IAM Role-based Authentication (IRSA)
 
