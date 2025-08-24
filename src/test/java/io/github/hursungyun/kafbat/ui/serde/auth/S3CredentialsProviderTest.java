@@ -28,11 +28,11 @@ class S3CredentialsProviderTest {
 
     @Test
     void shouldConfigureWithExplicitCredentials() {
-        when(properties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(properties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.of("test-access-key"));
-        when(properties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("test-secret-key"));
-        when(properties.getProperty("descriptor.value.s3.sts.endpoint", String.class))
+        when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
 
         S3CredentialsProvider.configure(clientBuilder, properties);
@@ -42,11 +42,11 @@ class S3CredentialsProviderTest {
 
     @Test
     void shouldUseCustomStsEndpoint() {
-        when(properties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(properties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.of("test-access-key"));
-        when(properties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("test-secret-key"));
-        when(properties.getProperty("descriptor.value.s3.sts.endpoint", String.class))
+        when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.of("https://custom-sts.example.com"));
 
         S3CredentialsProvider.configure(clientBuilder, properties);
@@ -58,11 +58,11 @@ class S3CredentialsProviderTest {
     void shouldHandleNoCredentialsGracefully() {
         // Test that the provider handles missing credentials without throwing exceptions
         // (Environment-specific tests would require integration testing)
-        when(properties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(properties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("descriptor.value.s3.sts.endpoint", String.class))
+        when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
 
         // Should not throw exception during configuration

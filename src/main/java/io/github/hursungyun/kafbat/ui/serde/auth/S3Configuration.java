@@ -47,19 +47,23 @@ public class S3Configuration {
      * Create S3 configuration from properties with custom prefix
      */
     public static S3Configuration fromProperties(PropertyResolver properties, String prefix) {
-        String endpoint = properties.getProperty(prefix + ".endpoint", String.class)
-                .orElseThrow(() -> new IllegalArgumentException(prefix + ".endpoint is required"));
+        // Global S3 settings (shared across all S3 operations)
+        String endpoint = properties.getProperty("s3.endpoint", String.class)
+                .orElseThrow(() -> new IllegalArgumentException("s3.endpoint is required"));
+        String region = properties.getProperty("s3.region", String.class).orElse(null);
+        boolean secure = properties.getProperty("s3.secure", Boolean.class).orElse(true);
+        
+        // S3 authentication (centralized)
+        Optional<String> accessKey = properties.getProperty("s3.auth.access.key", String.class);
+        Optional<String> secretKey = properties.getProperty("s3.auth.secret.key", String.class);
+        String stsEndpoint = properties.getProperty("s3.auth.sts.endpoint", String.class)
+                .orElse("https://sts.amazonaws.com");
+
+        // Specific resource settings (bucket, object, refresh)
         String bucket = properties.getProperty(prefix + ".bucket", String.class)
                 .orElseThrow(() -> new IllegalArgumentException(prefix + ".bucket is required"));
         String objectKey = properties.getProperty(prefix + ".object.key", String.class)
                 .orElseThrow(() -> new IllegalArgumentException(prefix + ".object.key is required"));
-
-        Optional<String> accessKey = properties.getProperty(prefix + ".access.key", String.class);
-        Optional<String> secretKey = properties.getProperty(prefix + ".secret.key", String.class);
-        String region = properties.getProperty(prefix + ".region", String.class).orElse(null);
-        boolean secure = properties.getProperty(prefix + ".secure", Boolean.class).orElse(true);
-        String stsEndpoint = properties.getProperty(prefix + ".sts.endpoint", String.class)
-                .orElse("https://sts.amazonaws.com");
         Duration refreshInterval = properties.getProperty(prefix + ".refresh.interval.seconds", Long.class)
                 .map(Duration::ofSeconds)
                 .orElse(Duration.ofHours(1));

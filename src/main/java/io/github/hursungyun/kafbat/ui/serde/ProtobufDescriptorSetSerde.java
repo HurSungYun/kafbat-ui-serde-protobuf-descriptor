@@ -102,7 +102,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
             } else {
                 // Check if we have S3 credentials in properties
-                Optional<String> s3Endpoint = properties.getProperty("descriptor.value.s3.endpoint", String.class);
+                Optional<String> s3Endpoint = properties.getProperty("s3.endpoint", String.class);
                 if (s3Endpoint.isPresent()) {
                     return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
                 }

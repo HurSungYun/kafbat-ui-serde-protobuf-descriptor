@@ -63,17 +63,17 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
     @Test
     void shouldConfigureWithS3Source() throws Exception {
         // Configure for S3 source
-        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of(endpoint));
         when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of(BUCKET_NAME));
         when(serdeProperties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of(OBJECT_KEY));
-        when(serdeProperties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.of("testuser"));
-        when(serdeProperties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("testpassword"));
-        when(serdeProperties.getProperty("descriptor.value.s3.secure", Boolean.class))
+        when(serdeProperties.getProperty("s3.secure", Boolean.class))
                 .thenReturn(Optional.of(false));
         when(serdeProperties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(60L));
@@ -135,7 +135,7 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
         // Configure for local file (no S3 properties)
         when(serdeProperties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of("/nonexistent/file.desc"));
-        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.empty());
         when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.empty());
@@ -177,17 +177,17 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
     }
 
     private void configureSerdeForS3() {
-        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of(endpoint));
         when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of(BUCKET_NAME));
         when(serdeProperties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of(OBJECT_KEY));
-        when(serdeProperties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.of("testuser"));
-        when(serdeProperties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("testpassword"));
-        when(serdeProperties.getProperty("descriptor.value.s3.secure", Boolean.class))
+        when(serdeProperties.getProperty("s3.secure", Boolean.class))
                 .thenReturn(Optional.of(false));
         when(serdeProperties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(60L));
@@ -240,15 +240,15 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
         uploadTopicMappingsToS3(topicMappingsJson);
 
         // Configure serde with S3 source but override user-events locally
-        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of(String.format("http://localhost:%d", minioContainer.getMappedPort(9000))));
         when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of(BUCKET_NAME));
         when(serdeProperties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of(OBJECT_KEY));
-        when(serdeProperties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.of("testuser"));
-        when(serdeProperties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("testpassword"));
 
         // S3 topic mapping configuration
@@ -261,9 +261,9 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
         when(serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class))
                 .thenReturn(Optional.of(Map.of("user-events", "User")));
 
-        when(serdeProperties.getProperty("descriptor.value.s3.region", String.class))
+        when(serdeProperties.getProperty("s3.region", String.class))
                 .thenReturn(Optional.empty());
-        when(serdeProperties.getProperty("descriptor.value.s3.secure", Boolean.class))
+        when(serdeProperties.getProperty("s3.secure", Boolean.class))
                 .thenReturn(Optional.of(false));
         when(serdeProperties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(60L));
@@ -290,15 +290,15 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
 
     private void configureSerdeForS3WithTopicMappings() throws Exception {
         // Basic S3 descriptor configuration
-        when(serdeProperties.getProperty("descriptor.value.s3.endpoint", String.class))
+        when(serdeProperties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of(String.format("http://localhost:%d", minioContainer.getMappedPort(9000))));
         when(serdeProperties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of(BUCKET_NAME));
         when(serdeProperties.getProperty("descriptor.value.s3.object.key", String.class))
                 .thenReturn(Optional.of(OBJECT_KEY));
-        when(serdeProperties.getProperty("descriptor.value.s3.access.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.of("testuser"));
-        when(serdeProperties.getProperty("descriptor.value.s3.secret.key", String.class))
+        when(serdeProperties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("testpassword"));
 
         // S3 topic mapping configuration
@@ -307,9 +307,9 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
         when(serdeProperties.getProperty("topic.mapping.value.s3.object.key", String.class))
                 .thenReturn(Optional.of("topic-mappings.json"));
 
-        when(serdeProperties.getProperty("descriptor.value.s3.region", String.class))
+        when(serdeProperties.getProperty("s3.region", String.class))
                 .thenReturn(Optional.empty());
-        when(serdeProperties.getProperty("descriptor.value.s3.secure", Boolean.class))
+        when(serdeProperties.getProperty("s3.secure", Boolean.class))
                 .thenReturn(Optional.of(false));
         when(serdeProperties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(60L));
