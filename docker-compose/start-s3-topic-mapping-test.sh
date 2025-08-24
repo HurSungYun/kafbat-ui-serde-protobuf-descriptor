@@ -81,7 +81,7 @@ else
 fi
 
 # Build the serde JAR if it doesn't exist
-if [ ! -f "../build/libs/kafbat-ui-serde-protobuf-descriptor-0.1.0.jar" ]; then
+if [ ! -f "../build/libs/kafbat-ui-serde-protobuf-descriptor-0.1.1.jar" ]; then
     echo -e "${BLUE}🔨 Building serde JAR file...${NC}"
     cd ..
     ./gradlew build -x test
