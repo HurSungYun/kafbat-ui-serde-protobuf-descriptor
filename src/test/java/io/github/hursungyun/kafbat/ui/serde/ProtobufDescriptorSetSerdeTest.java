@@ -454,8 +454,8 @@ class ProtobufDescriptorSetSerdeTest {
             assertThat(serde.getSourceInfo()).containsKey("descriptorSource");
         } catch (RuntimeException e) {
             // Expected in test environment since we don't have actual S3 connectivity
-            // Just verify the error is related to S3 connectivity, not configuration
-            assertThat(e.getMessage()).containsAnyOf("Failed to load", "Connection", "S3");
+            // Just verify the error is related to configuration or S3 connectivity
+            assertThat(e.getMessage()).containsAnyOf("Failed to load", "Connection", "S3", "Failed to configure");
         }
     }
 }

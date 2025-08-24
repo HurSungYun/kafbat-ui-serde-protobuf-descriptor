@@ -48,7 +48,7 @@ kafka:
       serde:
         - name: ProtobufDescriptorSetSerde
           className: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
-          filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-1.0.0.jar
+          filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-0.0.8.jar
           properties:
             protobuf.descriptor.set.file: /path/to/your/descriptors.desc
             protobuf.message.name: "your.package.DefaultMessage"
@@ -66,7 +66,7 @@ kafka:
       serde:
         - name: ProtobufDescriptorSetSerde
           className: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
-          filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-1.0.0.jar
+          filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-0.0.8.jar
           properties:
             # S3 Configuration
             protobuf.s3.endpoint: "https://s3.amazonaws.com"
@@ -115,7 +115,7 @@ kafka:
       serde:
         - name: ProtobufDescriptorSetSerde
           className: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
-          filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-1.0.0.jar
+          filePath: /path/to/kafbat-ui-serde-protobuf-descriptor-0.0.8.jar
           properties:
             # S3 Configuration using IAM roles (no access keys needed)
             protobuf.s3.endpoint: "https://s3.ap-northeast-2.amazonaws.com"

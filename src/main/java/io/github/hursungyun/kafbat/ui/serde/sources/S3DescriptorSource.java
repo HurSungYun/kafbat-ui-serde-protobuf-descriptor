@@ -38,9 +38,22 @@ public class S3DescriptorSource implements DescriptorSource {
     private volatile String lastETag;
     
     public S3DescriptorSource(MinioClient minioClient, String bucketName, String objectKey, Duration refreshInterval) {
+        if (minioClient == null) {
+            throw new IllegalArgumentException("minioClient cannot be null");
+        }
+        if (bucketName == null || bucketName.trim().isEmpty()) {
+            throw new IllegalArgumentException("bucketName cannot be null or empty");
+        }
+        if (objectKey == null || objectKey.trim().isEmpty()) {
+            throw new IllegalArgumentException("objectKey cannot be null or empty");
+        }
+        if (refreshInterval == null || refreshInterval.isNegative()) {
+            throw new IllegalArgumentException("refreshInterval cannot be null or negative");
+        }
+        
         this.minioClient = minioClient;
-        this.bucketName = bucketName;
-        this.objectKey = objectKey;
+        this.bucketName = bucketName.trim();
+        this.objectKey = objectKey.trim();
         this.refreshInterval = refreshInterval;
     }
     
