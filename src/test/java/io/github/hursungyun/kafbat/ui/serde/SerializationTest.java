@@ -497,11 +497,18 @@ class SerializationTest {
                 }
                 """;
 
-        // Should throw exception for invalid enum value
+        // Should throw exception with detailed enum error message
         assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
                 .serialize(jsonWithInvalidEnum))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to serialize JSON to protobuf message");
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasMessageContaining("test.User")     // Should mention the message type
+                .satisfies(throwable -> {
+                    // Check that it's a serialization error with meaningful context
+                    assertThat(throwable.getMessage())
+                        .contains("topic test-topic")
+                        .contains("message type test.User");
+                });
     }
 
     @Test
@@ -518,11 +525,18 @@ class SerializationTest {
                 }
                 """;
 
-        // Should throw exception for invalid enum number
+        // Should throw exception with detailed enum number error message
         assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE)
                 .serialize(jsonWithInvalidEnumNumber))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to serialize JSON to protobuf message");
+                .hasMessageContaining("Failed to serialize JSON to protobuf message")
+                .hasMessageContaining("test.User")     // Should mention the message type
+                .satisfies(throwable -> {
+                    // Check that it's a serialization error with meaningful context
+                    assertThat(throwable.getMessage())
+                        .contains("topic test-topic")
+                        .contains("message type test.User");
+                });
     }
 
     @Test
