@@ -76,11 +76,24 @@ jobs:
           
           # Validate the JAR name includes the correct version
           VERSION="${{ steps.version.outputs.version }}"
-          if [[ "$jar_path" != *"$VERSION"* ]]; then
-            echo "❌ JAR filename '$jar_path' does not contain version '$VERSION'"
-            exit 1
+          IS_PRERELEASE="${{ steps.version.outputs.is_prerelease }}"
+          
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            # For prereleases, JAR contains build.gradle version, not prerelease version
+            GRADLE_VERSION=$(./gradlew properties --no-daemon -q | grep "version:" | awk '{print $2}')
+            if [[ "$jar_path" != *"$GRADLE_VERSION"* ]]; then
+              echo "❌ JAR filename '$jar_path' does not contain build.gradle version '$GRADLE_VERSION'"
+              exit 1
+            fi
+            echo "✅ Prerelease JAR filename validation passed: contains build.gradle version $GRADLE_VERSION"
+          else
+            # For stable releases, JAR must contain tag version
+            if [[ "$jar_path" != *"$VERSION"* ]]; then
+              echo "❌ JAR filename '$jar_path' does not contain version '$VERSION'"
+              exit 1
+            fi
+            echo "✅ Stable JAR filename validation passed"
           fi
-          echo "✅ JAR filename validation passed"
 
       - name: Compute SHA256
         run: |
@@ -112,11 +125,25 @@ jobs:
         run: |
           set -euo pipefail
           JAR="$(ls dist/*.jar | head -n1)"
-          echo "Release JAR: $JAR"
+          BASENAME="$(basename "$JAR" .jar)"
+          VERSION="${{ steps.version.outputs.version }}"
+          IS_PRERELEASE="${{ steps.version.outputs.is_prerelease }}"
           
-          # JAR already has correct version in filename, no need to modify
-          # Just generate checksums
-          (cd dist && sha256sum "$(basename "$JAR")" > SHASUMS256.txt)
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            # For prereleases, rename JAR to include prerelease version
+            NEW_JAR_NAME="${BASENAME%-*}-${VERSION}.jar"
+            mv "$JAR" "dist/$NEW_JAR_NAME"
+            echo "Renamed JAR for prerelease: $NEW_JAR_NAME"
+            FINAL_JAR="dist/$NEW_JAR_NAME"
+          else
+            # For stable releases, JAR already has correct name
+            FINAL_JAR="$JAR"
+          fi
+          
+          echo "Release JAR: $FINAL_JAR"
+          
+          # Generate checksums
+          (cd dist && sha256sum "$(basename "$FINAL_JAR")" > SHASUMS256.txt)
           
           echo "✅ Release artifacts prepared:"
           ls -la dist/
