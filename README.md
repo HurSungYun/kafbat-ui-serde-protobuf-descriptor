@@ -26,7 +26,6 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 
 - **🔍 Protobuf Message Visualization**: Transform binary protobuf messages into readable JSON in Kafbat UI
 - **📝 Message Production**: Create protobuf messages from JSON in Kafka UI (full serialization support)
-- **📋 Descriptor Set Support**: Use compiled protobuf descriptor sets (`.desc` files) for schema definitions
 - **🎯 Topic-Specific Mapping**: Configure different protobuf message types for different Kafka topics
 - **📁 Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, MinIO)
 
@@ -121,41 +120,7 @@ When using S3 topic mappings, create a JSON file with topic-to-message-type mapp
 }
 ```
 
-**Note**: Local `topic.mapping.value.local` configuration always overrides S3 topic mappings.
-
-## 🔒 Serialization Validation Modes
-
-### Strict Mode (Default)
-```yaml
-properties:
-  serialization.strict.field.validation: true  # Default
-```
-- **All fields must be present** in JSON, even if null
-- **Missing fields cause errors** - prevents accidental data loss
-- **Best for production** - ensures data completeness
-
-### Lenient Mode
-```yaml
-properties:
-  serialization.strict.field.validation: false
-```
-- **Missing fields get default values** (0, "", [], null)
-- **More flexible** for varied JSON input formats
-- **Best for development** - easier testing with partial JSON
-
-## ⚡ Features & Roadmap
-
-### Current Version (0.1.3)
-- **✅ Deserialization**: Full protobuf message deserialization (binary → JSON)
-- **✅ Serialization**: Full protobuf message serialization (JSON → binary)
-- **✅ Strict Field Validation**: Configurable validation requiring all fields in JSON (default: enabled)
-- **✅ Unknown Field Rejection**: Unknown JSON fields cause serialization errors
-- **❌ Key/Value Separation**: Currently only supports message values, not keys
-
-### Planned Features (v0.2.0+)
-- **🔑 Key Support**: Separate protobuf types for message keys and values using `descriptor.key.*` and `topic.mapping.key.*` properties
-
-#### S3 IAM Role-based Authentication (IRSA)
+#### S3 with IAM Roles (IRSA)
 
 For AWS environments using IAM roles (like EKS with IRSA), you can omit the access keys:
 
@@ -184,6 +149,19 @@ kafka:
             # Topic mappings from local configuration
             topic.mapping.value.local:
               "my-topic": "my.package.MyMessage"
+```
+
+**Note**: Local `topic.mapping.value.local` configuration always overrides S3 topic mappings.
+
+## 🔒 Serialization Validation
+
+**Strict Mode (Default):** All JSON fields required, prevents data loss  
+**Lenient Mode:** Missing fields get defaults, more flexible for development
+
+```yaml
+properties:
+  serialization.strict.field.validation: true   # Default: strict
+  serialization.strict.field.validation: false  # Optional: lenient
 ```
 
 ## Configuration Properties
