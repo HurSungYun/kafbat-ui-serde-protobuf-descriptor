@@ -19,9 +19,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Descriptor source that loads from S3 with caching support */
 public class S3DescriptorSource implements DescriptorSource {
+
+    private static final Logger logger = LoggerFactory.getLogger(S3DescriptorSource.class);
 
     private final MinioClient minioClient;
     private final String bucketName;
@@ -88,22 +92,54 @@ public class S3DescriptorSource implements DescriptorSource {
                 return cachedDescriptorSet;
             }
 
-            // Load fresh copy from S3
+            // Load fresh copy from S3 (atomic update)
+            DescriptorProtos.FileDescriptorSet newDescriptorSet;
             try (InputStream inputStream =
                     minioClient.getObject(
                             GetObjectArgs.builder().bucket(bucketName).object(objectKey).build())) {
 
-                cachedDescriptorSet = DescriptorProtos.FileDescriptorSet.parseFrom(inputStream);
-                lastRefresh = Instant.now();
-                lastETag = currentETag;
-
-                return cachedDescriptorSet;
+                newDescriptorSet = DescriptorProtos.FileDescriptorSet.parseFrom(inputStream);
             }
 
+            // Atomic update - only update cache if parsing succeeded
+            cachedDescriptorSet = newDescriptorSet;
+            lastRefresh = Instant.now();
+            lastETag = currentETag;
+
+            logger.debug(
+                    "Successfully refreshed descriptor set from S3: s3://{}/{}",
+                    bucketName,
+                    objectKey);
+            return cachedDescriptorSet;
+
         } catch (Exception e) {
-            throw new IOException(
-                    "Failed to load descriptor set from S3: s3://" + bucketName + "/" + objectKey,
-                    e);
+            // Log warning but preserve existing functionality
+            logger.warn(
+                    "Failed to refresh descriptor set from S3: s3://{}/{}. Error: {}. {}",
+                    bucketName,
+                    objectKey,
+                    e.getMessage(),
+                    cachedDescriptorSet != null
+                            ? "Continuing with existing cached data."
+                            : "No cached data available.");
+
+            // If we have cached data, return it; otherwise throw exception
+            if (cachedDescriptorSet != null) {
+                logger.info(
+                        "Using previously cached descriptor set from S3: s3://{}/{}",
+                        bucketName,
+                        objectKey);
+                return cachedDescriptorSet;
+            } else {
+                // No cached data available - this is the first load, so throw exception
+                throw new IOException(
+                        "Failed to load descriptor set from S3: s3://"
+                                + bucketName
+                                + "/"
+                                + objectKey
+                                + " and no cached data available",
+                        e);
+            }
         } finally {
             lock.writeLock().unlock();
         }
