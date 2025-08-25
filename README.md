@@ -4,16 +4,19 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 
 ## 📋 Requirements
 
-- **Java 17+** (required by Kafbat UI Serde API)
-- **Kafbat UI >= 0.7.0** (serde-api 1.0.0+)
+- **Java 17+** (required by protobuf-java and Kafbat UI Serde API)
+- **Kafbat UI >= 1.0.0** (serde-api 1.0.0 support)
 
 ## 🔗 Compatibility Matrix
 
-| Plugin Version | Kafbat UI Version | Serde API Version | Java Version |
-|---------------|-------------------|-------------------|--------------|
-| 0.1.3+        | >= 0.7.0          | 1.0.0            | 17+          |
+| Plugin Version | Kafbat UI Version | Serde API Version | Java Version | Release Date |
+|---------------|-------------------|-------------------|--------------|--------------|
+| 0.1.3+        | >= 1.0.0          | 1.0.0            | 17+          | 2025-01       |
 
-**Note**: This plugin uses `io.kafbat.ui:serde-api:1.0.0` from Maven Central.
+**Notes**: 
+- This plugin uses `io.kafbat.ui:serde-api:1.0.0` from Maven Central (published February 2024)
+- Kafbat UI v1.0.0+ includes the standardized Serde API for custom plugins
+- Java 17+ required for both protobuf-java compatibility and Kafbat UI Serde API
 
 ## Demo
 
