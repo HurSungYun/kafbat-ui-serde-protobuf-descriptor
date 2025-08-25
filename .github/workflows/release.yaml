@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-pre.[0-9]+'
   workflow_dispatch:
 
 jobs:
@@ -29,6 +30,15 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/v}"
           echo "version=$TAG" >> "$GITHUB_OUTPUT"
           echo "Extracted version: $TAG"
+          
+          # Detect if this is a prerelease
+          if [[ "$TAG" == *"-pre."* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "Detected prerelease: $TAG"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "Detected stable release: $TAG"
+          fi
 
       - name: Validate version consistency
         run: |
@@ -36,11 +46,24 @@ jobs:
           TAG_VERSION="${{ steps.version.outputs.version }}"
           echo "Gradle version: $GRADLE_VERSION"
           echo "Tag version: $TAG_VERSION"
-          if [ "$GRADLE_VERSION" != "$TAG_VERSION" ]; then
-            echo "❌ Version mismatch: build.gradle has '$GRADLE_VERSION' but tag is 'v$TAG_VERSION'"
-            exit 1
+          
+          # For prereleases, validate base version matches
+          if [[ "$TAG_VERSION" == *"-pre."* ]]; then
+            BASE_VERSION="${TAG_VERSION%-pre.*}"
+            echo "Prerelease base version: $BASE_VERSION"
+            if [ "$GRADLE_VERSION" != "$BASE_VERSION" ]; then
+              echo "❌ Version mismatch: build.gradle has '$GRADLE_VERSION' but prerelease tag base is '$BASE_VERSION'"
+              exit 1
+            fi
+            echo "✅ Prerelease version consistency validated: $GRADLE_VERSION -> $TAG_VERSION"
+          else
+            # For stable releases, versions must match exactly
+            if [ "$GRADLE_VERSION" != "$TAG_VERSION" ]; then
+              echo "❌ Version mismatch: build.gradle has '$GRADLE_VERSION' but tag is 'v$TAG_VERSION'"
+              exit 1
+            fi
+            echo "✅ Stable version consistency validated: $GRADLE_VERSION"
           fi
-          echo "✅ Version consistency validated: $GRADLE_VERSION"
 
       - name: Build (shadow jar)
         run: ./gradlew --no-daemon clean build
@@ -106,11 +129,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          name: ${{ steps.version.outputs.is_prerelease == 'true' && format('{0} (Prerelease)', github.ref_name) || github.ref_name }}
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') }}
+          prerelease: ${{ steps.version.outputs.is_prerelease == 'true' }}
           body: |
             ## Kafka UI Protobuf Descriptor Set Serde ${{ github.ref_name }}
+            
+            ${{ steps.version.outputs.is_prerelease == 'true' && '⚠️ **This is a prerelease version for testing purposes**' || '✅ **This is a stable release**' }}
             
             ### 📦 Artifacts
             - **JAR File**: `kafbat-ui-serde-protobuf-descriptor-${{ steps.version.outputs.version }}.jar`
@@ -118,6 +143,15 @@ jobs:
             
             ### 🚀 Usage
             Download the JAR file and configure it in your Kafka UI setup as described in the README.
+            
+            ${{ steps.version.outputs.is_prerelease == 'true' && '### ⚠️ Prerelease Notice
+            - This version is for testing and evaluation
+            - Not recommended for production use
+            - May contain experimental features
+            - Feedback welcome via GitHub Issues' || '### ✅ Stable Release
+            - Production ready
+            - Fully tested and validated
+            - Recommended for production use' }}
             
             ### 🔍 Verification
             Verify the download integrity using the provided SHA256 checksum.
