@@ -2,24 +2,19 @@ package io.github.hursungyun.kafbat.ui.serde;
 
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
-
-import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufSerializer;
-import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufDeserializer;
-import io.kafbat.ui.serde.api.DeserializeResult;
-import io.kafbat.ui.serde.api.PropertyResolver;
-import io.kafbat.ui.serde.api.SchemaDescription;
-import io.kafbat.ui.serde.api.Serde;
 import io.github.hursungyun.kafbat.ui.serde.auth.MinioClientFactory;
 import io.github.hursungyun.kafbat.ui.serde.auth.S3Configuration;
+import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufDeserializer;
+import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufSerializer;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSource;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSourceFactory;
 import io.github.hursungyun.kafbat.ui.serde.sources.S3DescriptorSource;
 import io.github.hursungyun.kafbat.ui.serde.sources.S3TopicMappingSource;
+import io.kafbat.ui.serde.api.PropertyResolver;
+import io.kafbat.ui.serde.api.SchemaDescription;
+import io.kafbat.ui.serde.api.Serde;
 import io.minio.MinioClient;
-
-
 import java.io.IOException;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -37,18 +32,21 @@ public class ProtobufDescriptorSetSerde implements Serde {
     private boolean strictFieldValidation;
 
     @Override
-    public void configure(PropertyResolver serdeProperties,
-                          PropertyResolver clusterProperties,
-                          PropertyResolver appProperties) {
+    public void configure(
+            PropertyResolver serdeProperties,
+            PropertyResolver clusterProperties,
+            PropertyResolver appProperties) {
         this.serdeProperties = serdeProperties;
-        
+
         try {
             initializeDescriptorSources(serdeProperties);
             initializeDescriptors();
             initializeSerializers();
         } catch (IOException | Descriptors.DescriptorValidationException e) {
-            String sourceDescription = descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
-            throw new RuntimeException("Failed to load protobuf descriptor set from: " + sourceDescription, e);
+            String sourceDescription =
+                    descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
+            throw new RuntimeException(
+                    "Failed to load protobuf descriptor set from: " + sourceDescription, e);
         } catch (Exception e) {
             throw new RuntimeException("Failed to configure ProtobufDescriptorSetSerde", e);
         }
@@ -59,16 +57,18 @@ public class ProtobufDescriptorSetSerde implements Serde {
         this.topicMappingSource = createTopicMappingSource(serdeProperties);
     }
 
-    private void initializeDescriptors() throws IOException, Descriptors.DescriptorValidationException {
+    private void initializeDescriptors()
+            throws IOException, Descriptors.DescriptorValidationException {
         loadDescriptorSet();
         configureTopicMappings(serdeProperties);
     }
 
     private void initializeSerializers() {
         // Check if strict field validation is enabled (default: true)
-        Optional<Boolean> strictModeOpt = serdeProperties.getProperty("serialization.strict.field.validation", Boolean.class);
+        Optional<Boolean> strictModeOpt =
+                serdeProperties.getProperty("serialization.strict.field.validation", Boolean.class);
         this.strictFieldValidation = strictModeOpt.orElse(true);
-        
+
         this.protobufSerializer = new ProtobufSerializer(strictFieldValidation);
         this.protobufDeserializer = new ProtobufDeserializer();
     }
@@ -80,10 +80,12 @@ public class ProtobufDescriptorSetSerde implements Serde {
         Map<String, Descriptors.FileDescriptor> tempDescriptors = new HashMap<>();
 
         // First pass: create all FileDescriptors without dependencies
-        for (DescriptorProtos.FileDescriptorProto fileDescriptorProto : descriptorSet.getFileList()) {
+        for (DescriptorProtos.FileDescriptorProto fileDescriptorProto :
+                descriptorSet.getFileList()) {
             if (fileDescriptorProto.getDependencyCount() == 0) {
-                Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(
-                        fileDescriptorProto, new Descriptors.FileDescriptor[0]);
+                Descriptors.FileDescriptor fileDescriptor =
+                        Descriptors.FileDescriptor.buildFrom(
+                                fileDescriptorProto, new Descriptors.FileDescriptor[0]);
                 tempDescriptors.put(fileDescriptorProto.getName(), fileDescriptor);
             }
         }
@@ -96,20 +98,24 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     private S3TopicMappingSource createTopicMappingSource(PropertyResolver properties) {
         // Check for S3 topic mapping configuration
-        Optional<String> s3Bucket = properties.getProperty("topic.mapping.value.s3.bucket", String.class);
-        Optional<String> s3ObjectKey = properties.getProperty("topic.mapping.value.s3.object.key", String.class);
+        Optional<String> s3Bucket =
+                properties.getProperty("topic.mapping.value.s3.bucket", String.class);
+        Optional<String> s3ObjectKey =
+                properties.getProperty("topic.mapping.value.s3.object.key", String.class);
 
         if (s3Bucket.isPresent() && s3ObjectKey.isPresent()) {
             // Use existing S3 configuration from descriptor source
             if (descriptorSource instanceof S3DescriptorSource) {
                 // Reuse the MinIO client from descriptor source - this requires exposing the client
                 // For now, we'll create a new client with the same configuration
-                return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
+                return createS3TopicMappingSourceFromProperties(
+                        properties, s3Bucket.get(), s3ObjectKey.get());
             } else {
                 // Check if we have S3 credentials in properties
                 Optional<String> s3Endpoint = properties.getProperty("s3.endpoint", String.class);
                 if (s3Endpoint.isPresent()) {
-                    return createS3TopicMappingSourceFromProperties(properties, s3Bucket.get(), s3ObjectKey.get());
+                    return createS3TopicMappingSourceFromProperties(
+                            properties, s3Bucket.get(), s3ObjectKey.get());
                 }
             }
         }
@@ -117,21 +123,24 @@ public class ProtobufDescriptorSetSerde implements Serde {
         return null;
     }
 
-    private S3TopicMappingSource createS3TopicMappingSourceFromProperties(PropertyResolver properties, String bucket, String objectKey) {
+    private S3TopicMappingSource createS3TopicMappingSourceFromProperties(
+            PropertyResolver properties, String bucket, String objectKey) {
         // Create S3 configuration from properties (reusing same S3 config as descriptors)
         S3Configuration config = S3Configuration.fromProperties(properties, "descriptor.value.s3");
 
         // Create MinIO client using the factory
         MinioClient minioClient = MinioClientFactory.create(config);
 
-        return new S3TopicMappingSource(minioClient, bucket, objectKey, config.getRefreshInterval());
+        return new S3TopicMappingSource(
+                minioClient, bucket, objectKey, config.getRefreshInterval());
     }
 
     private void configureTopicMappings(PropertyResolver serdeProperties) {
-        Optional<String> defaultMessageName = serdeProperties.getProperty("message.value.default.type", String.class);
+        Optional<String> defaultMessageName =
+                serdeProperties.getProperty("message.value.default.type", String.class);
         Map<String, String> combinedTopicMappings = loadCombinedTopicMappings(serdeProperties);
         Map<String, Descriptors.Descriptor> allDescriptors = buildDescriptorMap();
-        
+
         configureDefaultMessageDescriptor(defaultMessageName, allDescriptors);
         configureTopicSpecificMappings(combinedTopicMappings, allDescriptors);
     }
@@ -145,13 +154,17 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 Map<String, String> s3TopicMappings = topicMappingSource.loadTopicMappings();
                 combinedTopicMappings.putAll(s3TopicMappings);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load topic mappings from S3: " + topicMappingSource.getDescription(), e);
+                throw new RuntimeException(
+                        "Failed to load topic mappings from S3: "
+                                + topicMappingSource.getDescription(),
+                        e);
             }
         }
 
         // Get topic-specific message mappings from local configuration (overrides S3)
         Optional<Map<String, String>> localTopicMessageMappings =
-                serdeProperties.getMapProperty("topic.mapping.value.local", String.class, String.class);
+                serdeProperties.getMapProperty(
+                        "topic.mapping.value.local", String.class, String.class);
         if (localTopicMessageMappings.isPresent()) {
             combinedTopicMappings.putAll(localTopicMessageMappings.get());
         }
@@ -169,22 +182,26 @@ public class ProtobufDescriptorSetSerde implements Serde {
         return allDescriptors;
     }
 
-    private void configureDefaultMessageDescriptor(Optional<String> defaultMessageName, 
-                                                  Map<String, Descriptors.Descriptor> allDescriptors) {
+    private void configureDefaultMessageDescriptor(
+            Optional<String> defaultMessageName,
+            Map<String, Descriptors.Descriptor> allDescriptors) {
         if (defaultMessageName.isPresent()) {
-            this.defaultMessageDescriptor = findDescriptorByName(allDescriptors, defaultMessageName.get());
+            this.defaultMessageDescriptor =
+                    findDescriptorByName(allDescriptors, defaultMessageName.get());
         } else {
             this.defaultMessageDescriptor = null;
         }
     }
 
-    private void configureTopicSpecificMappings(Map<String, String> combinedTopicMappings, 
-                                               Map<String, Descriptors.Descriptor> allDescriptors) {
+    private void configureTopicSpecificMappings(
+            Map<String, String> combinedTopicMappings,
+            Map<String, Descriptors.Descriptor> allDescriptors) {
         if (!combinedTopicMappings.isEmpty()) {
             for (Map.Entry<String, String> entry : combinedTopicMappings.entrySet()) {
                 String topic = entry.getKey();
                 String messageName = entry.getValue();
-                Descriptors.Descriptor descriptor = findDescriptorByName(allDescriptors, messageName);
+                Descriptors.Descriptor descriptor =
+                        findDescriptorByName(allDescriptors, messageName);
                 if (descriptor != null) {
                     topicToMessageDescriptorMap.put(topic, descriptor);
                 }
@@ -205,8 +222,11 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     @Override
     public Optional<String> getDescription() {
-        String sourceDescription = descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
-        return Optional.of("Protobuf Descriptor Set Serde - deserializes protobuf messages from " + sourceDescription);
+        String sourceDescription =
+                descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
+        return Optional.of(
+                "Protobuf Descriptor Set Serde - deserializes protobuf messages from "
+                        + sourceDescription);
     }
 
     @Override
@@ -231,14 +251,19 @@ public class ProtobufDescriptorSetSerde implements Serde {
             // Get the descriptor for this topic
             Optional<Descriptors.Descriptor> descriptorOpt = descriptorFor(topic, target);
             if (descriptorOpt.isEmpty()) {
-                throw new IllegalStateException("No message type configured for topic: " + topic + ", target: " + target);
+                throw new IllegalStateException(
+                        "No message type configured for topic: " + topic + ", target: " + target);
             }
-            
+
             try {
                 return protobufSerializer.serialize(descriptorOpt.get(), inputString);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to serialize JSON to protobuf message for topic " + topic 
-                        + " with configured message type " + descriptorOpt.get().getFullName(), e);
+                throw new RuntimeException(
+                        "Failed to serialize JSON to protobuf message for topic "
+                                + topic
+                                + " with configured message type "
+                                + descriptorOpt.get().getFullName(),
+                        e);
             }
         };
     }
@@ -253,20 +278,24 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 try {
                     return protobufDeserializer.deserialize(specificDescriptor.get(), bytes);
                 } catch (Exception e) {
-                    throw new RuntimeException("Failed to deserialize protobuf message for topic " + topic
-                            + " with configured message type " + specificDescriptor.get().getFullName(), e);
+                    throw new RuntimeException(
+                            "Failed to deserialize protobuf message for topic "
+                                    + topic
+                                    + " with configured message type "
+                                    + specificDescriptor.get().getFullName(),
+                            e);
                 }
             }
 
             // No specific descriptor configured - cannot deserialize
-            throw new IllegalStateException("No message type configured for topic: " + topic + ", target: " + target);
+            throw new IllegalStateException(
+                    "No message type configured for topic: " + topic + ", target: " + target);
         };
     }
 
-
-
     /**
      * Refresh the descriptor set and topic mappings from source if they support refresh
+     *
      * @return true if refresh was attempted, false if not supported
      */
     public boolean refreshDescriptors() {
@@ -284,7 +313,10 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 loadDescriptorSet();
                 refreshed = true;
             } catch (Exception e) {
-                throw new RuntimeException("Failed to refresh descriptor set from: " + descriptorSource.getDescription(), e);
+                throw new RuntimeException(
+                        "Failed to refresh descriptor set from: "
+                                + descriptorSource.getDescription(),
+                        e);
             }
         }
 
@@ -298,7 +330,10 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 configureTopicMappings(serdeProperties);
                 refreshed = true;
             } catch (Exception e) {
-                throw new RuntimeException("Failed to refresh topic mappings from: " + topicMappingSource.getDescription(), e);
+                throw new RuntimeException(
+                        "Failed to refresh topic mappings from: "
+                                + topicMappingSource.getDescription(),
+                        e);
             }
         }
 
@@ -307,6 +342,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     /**
      * Get information about the descriptor source and topic mapping source
+     *
      * @return Source descriptions and last modified times if available
      */
     public Map<String, Object> getSourceInfo() {
@@ -314,53 +350,61 @@ public class ProtobufDescriptorSetSerde implements Serde {
         if (descriptorSource != null) {
             info.put("descriptorSource", descriptorSource.getDescription());
             info.put("descriptorSupportsRefresh", descriptorSource.supportsRefresh());
-            descriptorSource.getLastModified().ifPresent(lastModified ->
-                info.put("descriptorLastModified", lastModified.toString()));
+            descriptorSource
+                    .getLastModified()
+                    .ifPresent(
+                            lastModified ->
+                                    info.put("descriptorLastModified", lastModified.toString()));
         }
         if (topicMappingSource != null) {
             info.put("topicMappingSource", topicMappingSource.getDescription());
             info.put("topicMappingSupportsRefresh", topicMappingSource.supportsRefresh());
-            topicMappingSource.getLastModified().ifPresent(lastModified ->
-                info.put("topicMappingLastModified", lastModified.toString()));
+            topicMappingSource
+                    .getLastModified()
+                    .ifPresent(
+                            lastModified ->
+                                    info.put("topicMappingLastModified", lastModified.toString()));
         }
         return info;
     }
 
-    /**
-     * Find a protobuf descriptor by name, trying full name first, then simple name
-     */
-    private Descriptors.Descriptor findDescriptorByName(Map<String, Descriptors.Descriptor> allDescriptors, String messageName) {
+    /** Find a protobuf descriptor by name, trying full name first, then simple name */
+    private Descriptors.Descriptor findDescriptorByName(
+            Map<String, Descriptors.Descriptor> allDescriptors, String messageName) {
         // Try full name first
         Descriptors.Descriptor descriptor = allDescriptors.get(messageName);
         if (descriptor != null) {
             return descriptor;
         }
-        
+
         // Fall back to simple name lookup
         for (Descriptors.Descriptor desc : allDescriptors.values()) {
             if (desc.getName().equals(messageName)) {
                 return desc;
             }
         }
-        
+
         return null;
     }
 
-    private void buildFileDescriptorsWithDependencies(DescriptorProtos.FileDescriptorSet descriptorSet, 
-                                                      Map<String, Descriptors.FileDescriptor> tempDescriptors) 
-                                                      throws Descriptors.DescriptorValidationException {
+    private void buildFileDescriptorsWithDependencies(
+            DescriptorProtos.FileDescriptorSet descriptorSet,
+            Map<String, Descriptors.FileDescriptor> tempDescriptors)
+            throws Descriptors.DescriptorValidationException {
         boolean progress = true;
         while (progress && tempDescriptors.size() < descriptorSet.getFileCount()) {
             progress = false;
-            for (DescriptorProtos.FileDescriptorProto fileDescriptorProto : descriptorSet.getFileList()) {
+            for (DescriptorProtos.FileDescriptorProto fileDescriptorProto :
+                    descriptorSet.getFileList()) {
                 if (tempDescriptors.containsKey(fileDescriptorProto.getName())) {
                     continue;
                 }
 
-                Descriptors.FileDescriptor[] dependencies = resolveDependencies(fileDescriptorProto, tempDescriptors);
+                Descriptors.FileDescriptor[] dependencies =
+                        resolveDependencies(fileDescriptorProto, tempDescriptors);
                 if (dependencies != null) {
-                    Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(
-                            fileDescriptorProto, dependencies);
+                    Descriptors.FileDescriptor fileDescriptor =
+                            Descriptors.FileDescriptor.buildFrom(fileDescriptorProto, dependencies);
                     tempDescriptors.put(fileDescriptorProto.getName(), fileDescriptor);
                     progress = true;
                 }
@@ -368,10 +412,12 @@ public class ProtobufDescriptorSetSerde implements Serde {
         }
     }
 
-    private Descriptors.FileDescriptor[] resolveDependencies(DescriptorProtos.FileDescriptorProto fileDescriptorProto, 
-                                                            Map<String, Descriptors.FileDescriptor> tempDescriptors) {
-        Descriptors.FileDescriptor[] dependencies = new Descriptors.FileDescriptor[fileDescriptorProto.getDependencyCount()];
-        
+    private Descriptors.FileDescriptor[] resolveDependencies(
+            DescriptorProtos.FileDescriptorProto fileDescriptorProto,
+            Map<String, Descriptors.FileDescriptor> tempDescriptors) {
+        Descriptors.FileDescriptor[] dependencies =
+                new Descriptors.FileDescriptor[fileDescriptorProto.getDependencyCount()];
+
         for (int i = 0; i < fileDescriptorProto.getDependencyCount(); i++) {
             String depName = fileDescriptorProto.getDependency(i);
             Descriptors.FileDescriptor dependency = tempDescriptors.get(depName);
@@ -380,7 +426,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
             }
             dependencies[i] = dependency;
         }
-        
+
         return dependencies;
     }
 }

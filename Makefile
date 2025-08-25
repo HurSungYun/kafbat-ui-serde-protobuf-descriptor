@@ -32,8 +32,14 @@ dev: ## Development build (compile + test)
 quick: ## Quick build (compile only, skip tests)
 	./gradlew assemble
 
-verify: ## Full verification (clean + build + check)
-	./gradlew clean build check
+verify: ## Full verification (clean + build + check + format)
+	./gradlew clean spotlessCheck build check
+
+format: ## Apply code formatting
+	./gradlew spotlessApply
+
+format-check: ## Check code formatting
+	./gradlew spotlessCheck
 
 deps: ## Show project dependencies
 	./gradlew dependencies

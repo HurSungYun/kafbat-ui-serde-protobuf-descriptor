@@ -1,22 +1,20 @@
 package io.github.hursungyun.kafbat.ui.serde.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
+
 import io.kafbat.ui.serde.api.PropertyResolver;
+import java.time.Duration;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.time.Duration;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
-
 class S3ConfigurationTest {
 
-    @Mock
-    private PropertyResolver properties;
+    @Mock private PropertyResolver properties;
 
     @BeforeEach
     void setUp() {
@@ -38,8 +36,7 @@ class S3ConfigurationTest {
                 .thenReturn(Optional.of("test-secret-key"));
         when(properties.getProperty("s3.region", String.class))
                 .thenReturn(Optional.of("us-east-1"));
-        when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.of(false));
+        when(properties.getProperty("s3.secure", Boolean.class)).thenReturn(Optional.of(false));
         when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.of("https://sts.custom.com"));
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
@@ -71,10 +68,8 @@ class S3ConfigurationTest {
                 .thenReturn(Optional.empty());
         when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.region", String.class))
-                .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.region", String.class)).thenReturn(Optional.empty());
+        when(properties.getProperty("s3.secure", Boolean.class)).thenReturn(Optional.empty());
         when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
@@ -96,8 +91,7 @@ class S3ConfigurationTest {
     @Test
     void shouldThrowExceptionWhenRequiredPropertiesMissing() {
         // Missing endpoint
-        when(properties.getProperty("s3.endpoint", String.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.endpoint", String.class)).thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.of("test-bucket"));
         when(properties.getProperty("descriptor.value.s3.object.key", String.class))
@@ -142,10 +136,8 @@ class S3ConfigurationTest {
         // Global S3 settings
         when(properties.getProperty("s3.endpoint", String.class))
                 .thenReturn(Optional.of("https://custom.endpoint.com"));
-        when(properties.getProperty("s3.region", String.class))
-                .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.region", String.class)).thenReturn(Optional.empty());
+        when(properties.getProperty("s3.secure", Boolean.class)).thenReturn(Optional.empty());
         when(properties.getProperty("s3.auth.access.key", String.class))
                 .thenReturn(Optional.empty());
         when(properties.getProperty("s3.auth.secret.key", String.class))

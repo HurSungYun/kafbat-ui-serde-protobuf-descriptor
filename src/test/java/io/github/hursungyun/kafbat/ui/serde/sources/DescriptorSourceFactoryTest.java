@@ -1,15 +1,14 @@
 package io.github.hursungyun.kafbat.ui.serde.sources;
 
-import io.kafbat.ui.serde.api.PropertyResolver;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+
+import io.kafbat.ui.serde.api.PropertyResolver;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class DescriptorSourceFactoryTest {
 
@@ -24,8 +23,7 @@ class DescriptorSourceFactoryTest {
     void shouldCreateLocalFileSourceWhenFilePathProvided() {
         when(properties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.of("/path/to/descriptors.desc"));
-        when(properties.getProperty("s3.endpoint", String.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.endpoint", String.class)).thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.object.key", String.class))
@@ -50,12 +48,10 @@ class DescriptorSourceFactoryTest {
                 .thenReturn(Optional.of("access-key"));
         when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("secret-key"));
-        
+
         // Optional properties with defaults
-        when(properties.getProperty("s3.region", String.class))
-                .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.region", String.class)).thenReturn(Optional.empty());
+        when(properties.getProperty("s3.secure", Boolean.class)).thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.empty());
 
@@ -80,12 +76,10 @@ class DescriptorSourceFactoryTest {
                 .thenReturn(Optional.of("access-key"));
         when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.of("secret-key"));
-        
+
         // Optional properties
-        when(properties.getProperty("s3.region", String.class))
-                .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.region", String.class)).thenReturn(Optional.empty());
+        when(properties.getProperty("s3.secure", Boolean.class)).thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.empty());
 
@@ -98,8 +92,7 @@ class DescriptorSourceFactoryTest {
     void shouldThrowExceptionWhenNoConfigurationProvided() {
         when(properties.getProperty("descriptor.value.file", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.endpoint", String.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.endpoint", String.class)).thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.bucket", String.class))
                 .thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.object.key", String.class))
@@ -144,12 +137,10 @@ class DescriptorSourceFactoryTest {
                 .thenReturn(Optional.of("secret-key"));
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
                 .thenReturn(Optional.of(120L)); // 2 minutes
-        
+
         // Other optional properties
-        when(properties.getProperty("s3.region", String.class))
-                .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.region", String.class)).thenReturn(Optional.empty());
+        when(properties.getProperty("s3.secure", Boolean.class)).thenReturn(Optional.empty());
 
         DescriptorSource source = DescriptorSourceFactory.create(properties);
 
