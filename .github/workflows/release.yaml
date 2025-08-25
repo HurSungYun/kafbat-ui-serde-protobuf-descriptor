@@ -47,15 +47,11 @@ jobs:
           echo "Gradle version: $GRADLE_VERSION"
           echo "Tag version: $TAG_VERSION"
           
-          # For prereleases, validate base version matches
+          # For prereleases, skip version validation (allows testing next version)
           if [[ "$TAG_VERSION" == *"-pre."* ]]; then
             BASE_VERSION="${TAG_VERSION%-pre.*}"
             echo "Prerelease base version: $BASE_VERSION"
-            if [ "$GRADLE_VERSION" != "$BASE_VERSION" ]; then
-              echo "❌ Version mismatch: build.gradle has '$GRADLE_VERSION' but prerelease tag base is '$BASE_VERSION'"
-              exit 1
-            fi
-            echo "✅ Prerelease version consistency validated: $GRADLE_VERSION -> $TAG_VERSION"
+            echo "✅ Prerelease version validation skipped: build.gradle=$GRADLE_VERSION, testing=$TAG_VERSION"
           else
             # For stable releases, versions must match exactly
             if [ "$GRADLE_VERSION" != "$TAG_VERSION" ]; then
