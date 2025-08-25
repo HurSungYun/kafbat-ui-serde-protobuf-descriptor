@@ -18,8 +18,12 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ProtobufDescriptorSetSerde implements Serde {
+
+    private static final Logger logger = LoggerFactory.getLogger(ProtobufDescriptorSetSerde.class);
 
     private Map<String, Descriptors.FileDescriptor> fileDescriptorMap;
     private Map<String, Descriptors.Descriptor> topicToMessageDescriptorMap = new HashMap<>();
@@ -294,46 +298,67 @@ public class ProtobufDescriptorSetSerde implements Serde {
     }
 
     /**
-     * Refresh the descriptor set and topic mappings from source if they support refresh
+     * Refresh the descriptor set and topic mappings from source if they support refresh Uses
+     * graceful error handling - refresh failures are logged but don't break existing functionality
      *
      * @return true if refresh was attempted, false if not supported
      */
     public boolean refreshDescriptors() {
         boolean refreshed = false;
 
-        // Refresh descriptors
+        // Refresh descriptors (graceful failure handling)
         if (descriptorSource != null && descriptorSource.supportsRefresh()) {
             try {
+                logger.debug(
+                        "Attempting to refresh descriptor set from: {}",
+                        descriptorSource.getDescription());
+
                 // Force invalidation if S3 source
                 if (descriptorSource instanceof S3DescriptorSource) {
                     ((S3DescriptorSource) descriptorSource).invalidateCache();
                 }
 
-                // Reload descriptors
+                // Reload descriptors - this will use graceful error handling in S3DescriptorSource
                 loadDescriptorSet();
                 refreshed = true;
+                logger.info(
+                        "Successfully refreshed descriptor set from: {}",
+                        descriptorSource.getDescription());
             } catch (Exception e) {
-                throw new RuntimeException(
-                        "Failed to refresh descriptor set from: "
-                                + descriptorSource.getDescription(),
-                        e);
+                // Log warning but don't break existing functionality
+                logger.warn(
+                        "Failed to refresh descriptor set from: {}. Continuing with existing"
+                                + " descriptors. Error: {}",
+                        descriptorSource.getDescription(),
+                        e.getMessage());
+                // Don't throw exception - keep existing descriptors working
             }
         }
 
-        // Refresh topic mappings
+        // Refresh topic mappings (graceful failure handling)
         if (topicMappingSource != null) {
             try {
+                logger.debug(
+                        "Attempting to refresh topic mappings from: {}",
+                        topicMappingSource.getDescription());
+
                 // Force invalidation of S3 topic mapping cache
                 topicMappingSource.invalidateCache();
 
                 // Reconfigure topic mappings (will reload from S3)
                 configureTopicMappings(serdeProperties);
                 refreshed = true;
+                logger.info(
+                        "Successfully refreshed topic mappings from: {}",
+                        topicMappingSource.getDescription());
             } catch (Exception e) {
-                throw new RuntimeException(
-                        "Failed to refresh topic mappings from: "
-                                + topicMappingSource.getDescription(),
-                        e);
+                // Log warning but don't break existing functionality
+                logger.warn(
+                        "Failed to refresh topic mappings from: {}. Continuing with existing"
+                                + " mappings. Error: {}",
+                        topicMappingSource.getDescription(),
+                        e.getMessage());
+                // Don't throw exception - keep existing mappings working
             }
         }
 
