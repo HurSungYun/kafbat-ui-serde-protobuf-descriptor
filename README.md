@@ -17,7 +17,7 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 
 ## Demo
 
-![Demo](demo.gif)
+![Demo](images/demo_serde.gif)
 
 ## Features
 
