@@ -9,9 +9,9 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 
 ## 🔗 Compatibility Matrix
 
-| Plugin Version | Kafbat UI Version | Serde API Version | Java Version | Release Date |
-|---------------|-------------------|-------------------|--------------|--------------|
-| 0.1.3+        | >= 1.0.0          | 1.0.0            | 17+          | 2025-01       |
+| Plugin Version | Kafbat UI Version | Serde API Version | Java Version |
+|---------------|-------------------|-------------------|--------------|
+| 0.1.3+        | >= 1.0.0          | 1.0.0            | 17+          |
 
 **Notes**: 
 - This plugin uses `io.kafbat.ui:serde-api:1.0.0` from Maven Central (published February 2024)
