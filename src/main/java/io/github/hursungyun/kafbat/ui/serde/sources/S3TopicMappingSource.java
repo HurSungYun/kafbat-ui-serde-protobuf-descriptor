@@ -12,7 +12,6 @@ import io.minio.errors.InternalException;
 import io.minio.errors.InvalidResponseException;
 import io.minio.errors.ServerException;
 import io.minio.errors.XmlParserException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
@@ -23,9 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/**
- * Source for loading topic-to-message-type mappings from S3 JSON files
- */
+/** Source for loading topic-to-message-type mappings from S3 JSON files */
 public class S3TopicMappingSource {
 
     private final MinioClient minioClient;
@@ -40,7 +37,11 @@ public class S3TopicMappingSource {
     private volatile Instant lastRefresh;
     private volatile String lastETag;
 
-    public S3TopicMappingSource(MinioClient minioClient, String bucketName, String objectKey, Duration refreshInterval) {
+    public S3TopicMappingSource(
+            MinioClient minioClient,
+            String bucketName,
+            String objectKey,
+            Duration refreshInterval) {
         if (minioClient == null) {
             throw new IllegalArgumentException("minioClient cannot be null");
         }
@@ -53,7 +54,7 @@ public class S3TopicMappingSource {
         if (refreshInterval == null || refreshInterval.isNegative()) {
             throw new IllegalArgumentException("refreshInterval cannot be null or negative");
         }
-        
+
         this.minioClient = minioClient;
         this.bucketName = bucketName.trim();
         this.objectKey = objectKey.trim();
@@ -91,14 +92,13 @@ public class S3TopicMappingSource {
             }
 
             // Load fresh copy from S3
-            try (InputStream inputStream = minioClient.getObject(
-                    GetObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectKey)
-                            .build())) {
+            try (InputStream inputStream =
+                    minioClient.getObject(
+                            GetObjectArgs.builder().bucket(bucketName).object(objectKey).build())) {
 
                 // Parse JSON as Map<String, String>
-                TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>() {};
+                TypeReference<Map<String, String>> typeRef =
+                        new TypeReference<Map<String, String>>() {};
                 cachedTopicMappings = objectMapper.readValue(inputStream, typeRef);
                 lastRefresh = Instant.now();
                 lastETag = currentETag;
@@ -107,7 +107,9 @@ public class S3TopicMappingSource {
             }
 
         } catch (Exception e) {
-            throw new IOException("Failed to load topic mappings from S3: s3://" + bucketName + "/" + objectKey, e);
+            throw new IOException(
+                    "Failed to load topic mappings from S3: s3://" + bucketName + "/" + objectKey,
+                    e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -130,9 +132,7 @@ public class S3TopicMappingSource {
         return true;
     }
 
-    /**
-     * Force refresh of the cached topic mappings on next load
-     */
+    /** Force refresh of the cached topic mappings on next load */
     public void invalidateCache() {
         lock.writeLock().lock();
         try {
@@ -144,21 +144,24 @@ public class S3TopicMappingSource {
     }
 
     private boolean shouldRefresh() {
-        return lastRefresh == null ||
-               Duration.between(lastRefresh, Instant.now()).compareTo(refreshInterval) >= 0;
+        return lastRefresh == null
+                || Duration.between(lastRefresh, Instant.now()).compareTo(refreshInterval) >= 0;
     }
 
     private StatObjectResponse getObjectStat() throws IOException {
         try {
             return minioClient.statObject(
-                    StatObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectKey)
-                            .build());
-        } catch (ErrorResponseException | InsufficientDataException | InternalException |
-                 InvalidKeyException | InvalidResponseException | NoSuchAlgorithmException |
-                 ServerException | XmlParserException e) {
-            throw new IOException("Failed to get S3 object stat for s3://" + bucketName + "/" + objectKey, e);
+                    StatObjectArgs.builder().bucket(bucketName).object(objectKey).build());
+        } catch (ErrorResponseException
+                | InsufficientDataException
+                | InternalException
+                | InvalidKeyException
+                | InvalidResponseException
+                | NoSuchAlgorithmException
+                | ServerException
+                | XmlParserException e) {
+            throw new IOException(
+                    "Failed to get S3 object stat for s3://" + bucketName + "/" + objectKey, e);
         }
     }
 }

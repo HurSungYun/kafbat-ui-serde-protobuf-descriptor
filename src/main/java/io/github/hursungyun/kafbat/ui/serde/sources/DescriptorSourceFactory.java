@@ -1,22 +1,21 @@
 package io.github.hursungyun.kafbat.ui.serde.sources;
 
-import io.kafbat.ui.serde.api.PropertyResolver;
 import io.github.hursungyun.kafbat.ui.serde.auth.MinioClientFactory;
 import io.github.hursungyun.kafbat.ui.serde.auth.S3Configuration;
+import io.kafbat.ui.serde.api.PropertyResolver;
 import io.minio.MinioClient;
-
 import java.util.Optional;
 
-/**
- * Factory for creating descriptor sources based on configuration
- */
+/** Factory for creating descriptor sources based on configuration */
 public class DescriptorSourceFactory {
 
     public static DescriptorSource create(PropertyResolver properties) {
         // Check for S3 configuration first
         Optional<String> s3Endpoint = properties.getProperty("s3.endpoint", String.class);
-        Optional<String> s3Bucket = properties.getProperty("descriptor.value.s3.bucket", String.class);
-        Optional<String> s3ObjectKey = properties.getProperty("descriptor.value.s3.object.key", String.class);
+        Optional<String> s3Bucket =
+                properties.getProperty("descriptor.value.s3.bucket", String.class);
+        Optional<String> s3ObjectKey =
+                properties.getProperty("descriptor.value.s3.object.key", String.class);
 
         if (s3Endpoint.isPresent() && s3Bucket.isPresent() && s3ObjectKey.isPresent()) {
             // S3 configuration found
@@ -30,12 +29,13 @@ public class DescriptorSourceFactory {
         }
 
         throw new IllegalArgumentException(
-            "Either descriptor.value.file or S3 configuration " +
-            "(s3.endpoint + descriptor.value.s3.bucket + descriptor.value.s3.object.key) must be provided");
+                "Either descriptor.value.file or S3 configuration (s3.endpoint +"
+                        + " descriptor.value.s3.bucket + descriptor.value.s3.object.key) must be"
+                        + " provided");
     }
 
-    private static DescriptorSource createS3Source(PropertyResolver properties, String endpoint,
-                                                  String bucket, String objectKey) {
+    private static DescriptorSource createS3Source(
+            PropertyResolver properties, String endpoint, String bucket, String objectKey) {
         // Create S3 configuration from properties
         S3Configuration config = S3Configuration.fromProperties(properties, "descriptor.value.s3");
 

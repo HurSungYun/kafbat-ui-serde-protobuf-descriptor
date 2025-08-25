@@ -30,6 +30,12 @@ Thank you for your interest in contributing! This guide covers development setup
    
    # Integration tests (requires Docker)
    ENABLE_INTEGRATION_TESTS=true ./gradlew integrationTest
+   
+   # Code formatting check
+   ./gradlew spotlessCheck
+   
+   # Apply code formatting
+   ./gradlew spotlessApply
    ```
 
 ## Project Structure
@@ -172,10 +178,13 @@ The project uses a multi-platform CI/CD pipeline:
 
 ### Code Style
 
-1. **Follow existing conventions**: Match the existing code style and patterns
-2. **No unnecessary comments**: Code should be self-documenting
-3. **Use existing libraries**: Check what's already available before adding new dependencies
-4. **Error handling**: Provide meaningful error messages and proper exception handling
+1. **Spotless formatting**: Code is automatically formatted using Google Java Format (AOSP style)
+   - Run `./gradlew spotlessApply` to format your code
+   - CI will check formatting with `./gradlew spotlessCheck`
+2. **Follow existing conventions**: Match the existing code style and patterns
+3. **No unnecessary comments**: Code should be self-documenting
+4. **Use existing libraries**: Check what's already available before adding new dependencies
+5. **Error handling**: Provide meaningful error messages and proper exception handling
 
 ### Pull Request Process
 

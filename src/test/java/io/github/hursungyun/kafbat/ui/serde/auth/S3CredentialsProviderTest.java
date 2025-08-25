@@ -1,22 +1,20 @@
 package io.github.hursungyun.kafbat.ui.serde.auth;
 
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import io.kafbat.ui.serde.api.PropertyResolver;
 import io.minio.MinioClient;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.Optional;
-
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 class S3CredentialsProviderTest {
 
-    @Mock
-    private PropertyResolver properties;
+    @Mock private PropertyResolver properties;
 
     private MinioClient.Builder clientBuilder;
 
@@ -76,7 +74,8 @@ class S3CredentialsProviderTest {
         Optional<String> secretKey = Optional.of("direct-secret-key");
         String stsEndpoint = "https://sts.amazonaws.com";
 
-        S3CredentialsProvider.configureCredentials(clientBuilder, accessKey, secretKey, stsEndpoint);
+        S3CredentialsProvider.configureCredentials(
+                clientBuilder, accessKey, secretKey, stsEndpoint);
 
         verify(clientBuilder).credentials("direct-access-key", "direct-secret-key");
     }

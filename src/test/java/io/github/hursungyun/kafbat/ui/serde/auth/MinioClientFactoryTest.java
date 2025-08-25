@@ -1,22 +1,19 @@
 package io.github.hursungyun.kafbat.ui.serde.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
+
 import io.kafbat.ui.serde.api.PropertyResolver;
 import io.minio.MinioClient;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.time.Duration;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
-
 class MinioClientFactoryTest {
 
-    @Mock
-    private PropertyResolver properties;
+    @Mock private PropertyResolver properties;
 
     @BeforeEach
     void setUp() {
@@ -49,10 +46,8 @@ class MinioClientFactoryTest {
                 .thenReturn(Optional.empty());
         when(properties.getProperty("s3.auth.secret.key", String.class))
                 .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.region", String.class))
-                .thenReturn(Optional.empty());
-        when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.empty());
+        when(properties.getProperty("s3.region", String.class)).thenReturn(Optional.empty());
+        when(properties.getProperty("s3.secure", Boolean.class)).thenReturn(Optional.empty());
         when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
@@ -82,7 +77,7 @@ class MinioClientFactoryTest {
         when(properties.getProperty("s3.region", String.class))
                 .thenReturn(Optional.of("us-east-1"));
         when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.of(false));  // insecure
+                .thenReturn(Optional.of(false)); // insecure
         when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.empty());
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
@@ -109,8 +104,7 @@ class MinioClientFactoryTest {
                 .thenReturn(Optional.of("test-secret-key"));
         when(properties.getProperty("s3.region", String.class))
                 .thenReturn(Optional.of("us-east-1"));
-        when(properties.getProperty("s3.secure", Boolean.class))
-                .thenReturn(Optional.of(true));
+        when(properties.getProperty("s3.secure", Boolean.class)).thenReturn(Optional.of(true));
         when(properties.getProperty("s3.auth.sts.endpoint", String.class))
                 .thenReturn(Optional.of("https://sts.amazonaws.com"));
         when(properties.getProperty("descriptor.value.s3.refresh.interval.seconds", Long.class))
