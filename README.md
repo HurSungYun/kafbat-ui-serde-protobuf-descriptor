@@ -2,6 +2,18 @@
 
 A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafbat/kafka-ui) that allows deserializing protobuf messages using a protobuf descriptor set file.
 
+## Demo
+
+![Demo](images/demo_serde.gif)
+
+## Features
+
+- **🔍 Protobuf Message Visualization**: Transform binary protobuf messages into readable JSON in Kafbat UI
+- **📝 Message Production**: Create protobuf messages from JSON in Kafka UI (full serialization support)
+- **🎯 Topic-Specific Mapping**: Configure different protobuf message types for different Kafka topics
+- **📁 Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, MinIO)
+
+
 ## 📋 Requirements
 
 - **Java 17+** (required by protobuf-java and Kafbat UI Serde API)
@@ -17,17 +29,6 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 - This plugin uses `io.kafbat.ui:serde-api:1.0.0` from Maven Central (published February 2024)
 - Kafbat UI v1.0.0+ includes the standardized Serde API for custom plugins
 - Java 17+ required for both protobuf-java compatibility and Kafbat UI Serde API
-
-## Demo
-
-![Demo](images/demo_serde.gif)
-
-## Features
-
-- **🔍 Protobuf Message Visualization**: Transform binary protobuf messages into readable JSON in Kafbat UI
-- **📝 Message Production**: Create protobuf messages from JSON in Kafka UI (full serialization support)
-- **🎯 Topic-Specific Mapping**: Configure different protobuf message types for different Kafka topics
-- **📁 Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, MinIO)
 
 ## Quick Start
 
