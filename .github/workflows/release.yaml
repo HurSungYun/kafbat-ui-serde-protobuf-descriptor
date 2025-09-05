@@ -76,9 +76,9 @@ jobs:
           
           # Validate the JAR name includes the correct version
           VERSION="${{ steps.version.outputs.version }}"
-          IS_PRERELEASE="${{ steps.version.outputs.is_prerelease }}"
+          TAG_NAME="${{ github.ref_name }}"
           
-          if [[ "$IS_PRERELEASE" == "true" ]]; then
+          if [[ "$TAG_NAME" == *"-pre."* ]]; then
             # For prereleases, JAR contains build.gradle version, not prerelease version
             GRADLE_VERSION=$(./gradlew properties --no-daemon -q | grep "version:" | awk '{print $2}')
             if [[ "$jar_path" != *"$GRADLE_VERSION"* ]]; then
@@ -127,9 +127,9 @@ jobs:
           JAR="$(ls dist/*.jar | head -n1)"
           BASENAME="$(basename "$JAR" .jar)"
           VERSION="${{ steps.version.outputs.version }}"
-          IS_PRERELEASE="${{ steps.version.outputs.is_prerelease }}"
+          TAG_NAME="${{ github.ref_name }}"
           
-          if [[ "$IS_PRERELEASE" == "true" ]]; then
+          if [[ "$TAG_NAME" == *"-pre."* ]]; then
             # For prereleases, rename JAR to include prerelease version
             NEW_JAR_NAME="${BASENAME%-*}-${VERSION}.jar"
             mv "$JAR" "dist/$NEW_JAR_NAME"
@@ -152,13 +152,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ steps.version.outputs.is_prerelease == 'true' && format('{0} (Prerelease)', github.ref_name) || github.ref_name }}
+          name: ${{ contains(github.ref_name, '-pre.') && format('{0} (Prerelease)', github.ref_name) || github.ref_name }}
           generate_release_notes: true
-          prerelease: ${{ steps.version.outputs.is_prerelease == 'true' }}
+          prerelease: ${{ contains(github.ref_name, '-pre.') }}
           body: |
             ## Kafka UI Protobuf Descriptor Set Serde ${{ github.ref_name }}
             
-            ${{ steps.version.outputs.is_prerelease == 'true' && '⚠️ **This is a prerelease version for testing purposes**' || '✅ **This is a stable release**' }}
+            ${{ contains(github.ref_name, '-pre.') && '⚠️ **This is a prerelease version for testing purposes**' || '✅ **This is a stable release**' }}
             
             ### 📦 Artifacts
             - **JAR File**: `kafbat-ui-serde-protobuf-descriptor-${{ steps.version.outputs.version }}.jar`
@@ -167,7 +167,7 @@ jobs:
             ### 🚀 Usage
             Download the JAR file and configure it in your Kafka UI setup as described in the README.
             
-            ${{ steps.version.outputs.is_prerelease == 'true' && '### ⚠️ Prerelease Notice
+            ${{ contains(github.ref_name, '-pre.') && '### ⚠️ Prerelease Notice
             - This version is for testing and evaluation
             - Not recommended for production use
             - May contain experimental features
