@@ -125,8 +125,7 @@ class DescriptorRefreshSchedulerTest {
 
     @Test
     void shouldAllowStopWithoutStart() {
-        DescriptorRefreshScheduler scheduler =
-                new DescriptorRefreshScheduler(() -> {}, 60, "test");
+        DescriptorRefreshScheduler scheduler = new DescriptorRefreshScheduler(() -> {}, 60, "test");
 
         // Should not throw
         scheduler.stop();
@@ -135,8 +134,7 @@ class DescriptorRefreshSchedulerTest {
 
     @Test
     void shouldAllowMultipleStopCalls() throws InterruptedException {
-        DescriptorRefreshScheduler scheduler =
-                new DescriptorRefreshScheduler(() -> {}, 1, "test");
+        DescriptorRefreshScheduler scheduler = new DescriptorRefreshScheduler(() -> {}, 1, "test");
 
         scheduler.start();
         assertThat(scheduler.isRunning()).isTrue();

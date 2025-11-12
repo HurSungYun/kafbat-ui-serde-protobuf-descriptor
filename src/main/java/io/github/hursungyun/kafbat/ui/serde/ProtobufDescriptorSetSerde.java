@@ -25,9 +25,13 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     private static final Logger logger = LoggerFactory.getLogger(ProtobufDescriptorSetSerde.class);
 
-    private Map<String, Descriptors.FileDescriptor> fileDescriptorMap;
-    private Map<String, Descriptors.Descriptor> topicToMessageDescriptorMap = new HashMap<>();
-    private Descriptors.Descriptor defaultMessageDescriptor;
+    // Thread-safe fields accessed by both main thread and refresh thread
+    private volatile Map<String, Descriptors.FileDescriptor> fileDescriptorMap;
+    private volatile Map<String, Descriptors.Descriptor> topicToMessageDescriptorMap =
+            new HashMap<>();
+    private volatile Descriptors.Descriptor defaultMessageDescriptor;
+
+    // Configuration fields (set once during configure())
     private DescriptorSource descriptorSource;
     private S3TopicMappingSource topicMappingSource;
     private PropertyResolver serdeProperties;
@@ -147,8 +151,15 @@ public class ProtobufDescriptorSetSerde implements Serde {
         Map<String, String> combinedTopicMappings = loadCombinedTopicMappings(serdeProperties);
         Map<String, Descriptors.Descriptor> allDescriptors = buildDescriptorMap();
 
-        configureDefaultMessageDescriptor(defaultMessageName, allDescriptors);
-        configureTopicSpecificMappings(combinedTopicMappings, allDescriptors);
+        // Build new state without mutating existing state (thread-safe)
+        Descriptors.Descriptor newDefaultDescriptor =
+                buildDefaultMessageDescriptor(defaultMessageName, allDescriptors);
+        Map<String, Descriptors.Descriptor> newTopicMappings =
+                buildTopicSpecificMappings(combinedTopicMappings, allDescriptors);
+
+        // Atomic assignment - volatile writes ensure visibility to other threads
+        this.defaultMessageDescriptor = newDefaultDescriptor;
+        this.topicToMessageDescriptorMap = newTopicMappings;
     }
 
     private Map<String, String> loadCombinedTopicMappings(PropertyResolver serdeProperties) {
@@ -188,20 +199,30 @@ public class ProtobufDescriptorSetSerde implements Serde {
         return allDescriptors;
     }
 
-    private void configureDefaultMessageDescriptor(
+    /**
+     * Build default message descriptor without mutating state (thread-safe).
+     *
+     * @return The default descriptor, or null if not configured
+     */
+    private Descriptors.Descriptor buildDefaultMessageDescriptor(
             Optional<String> defaultMessageName,
             Map<String, Descriptors.Descriptor> allDescriptors) {
         if (defaultMessageName.isPresent()) {
-            this.defaultMessageDescriptor =
-                    findDescriptorByName(allDescriptors, defaultMessageName.get());
-        } else {
-            this.defaultMessageDescriptor = null;
+            return findDescriptorByName(allDescriptors, defaultMessageName.get());
         }
+        return null;
     }
 
-    private void configureTopicSpecificMappings(
+    /**
+     * Build topic-specific mappings without mutating state (thread-safe).
+     *
+     * @return New map of topic to descriptor mappings
+     */
+    private Map<String, Descriptors.Descriptor> buildTopicSpecificMappings(
             Map<String, String> combinedTopicMappings,
             Map<String, Descriptors.Descriptor> allDescriptors) {
+        Map<String, Descriptors.Descriptor> newMappings = new HashMap<>();
+
         if (!combinedTopicMappings.isEmpty()) {
             for (Map.Entry<String, String> entry : combinedTopicMappings.entrySet()) {
                 String topic = entry.getKey();
@@ -209,10 +230,12 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 Descriptors.Descriptor descriptor =
                         findDescriptorByName(allDescriptors, messageName);
                 if (descriptor != null) {
-                    topicToMessageDescriptorMap.put(topic, descriptor);
+                    newMappings.put(topic, descriptor);
                 }
             }
         }
+
+        return newMappings;
     }
 
     private Optional<Descriptors.Descriptor> descriptorFor(String topic, Target target) {

@@ -60,7 +60,6 @@ class ProtobufDescriptorSetSerdeS3IntegrationTest {
         setupMinioWithTestData();
     }
 
-
     @Test
     void shouldConfigureWithS3Source() throws Exception {
         // Configure for S3 source

@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Schedules periodic refresh of descriptor sources in the background using a daemon thread.
  *
- * <p>This scheduler runs the provided refresh task at a fixed interval. The thread is configured
- * as a daemon thread so it won't prevent JVM shutdown.
+ * <p>This scheduler runs the provided refresh task at a fixed interval. The thread is configured as
+ * a daemon thread so it won't prevent JVM shutdown.
  */
 class DescriptorRefreshScheduler {
 
