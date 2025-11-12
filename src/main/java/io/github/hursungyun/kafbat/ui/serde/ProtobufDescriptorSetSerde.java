@@ -46,6 +46,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
             PropertyResolver serdeProperties,
             PropertyResolver clusterProperties,
             PropertyResolver appProperties) {
+        logger.info("Configuring ProtobufDescriptorSetSerde");
         this.serdeProperties = serdeProperties;
 
         try {
@@ -53,12 +54,17 @@ public class ProtobufDescriptorSetSerde implements Serde {
             initializeDescriptors();
             initializeSerializers();
             startBackgroundRefresh();
+            logger.info(
+                    "Successfully configured ProtobufDescriptorSetSerde with source: {}",
+                    descriptorSource != null ? descriptorSource.getDescription() : "unknown");
         } catch (IOException | Descriptors.DescriptorValidationException e) {
             String sourceDescription =
                     descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
+            logger.error("Failed to load protobuf descriptor set from: {}", sourceDescription, e);
             throw new RuntimeException(
                     "Failed to load protobuf descriptor set from: " + sourceDescription, e);
         } catch (Exception e) {
+            logger.error("Failed to configure ProtobufDescriptorSetSerde", e);
             throw new RuntimeException("Failed to configure ProtobufDescriptorSetSerde", e);
         }
     }
