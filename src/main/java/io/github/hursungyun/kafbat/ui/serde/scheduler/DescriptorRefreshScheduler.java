@@ -28,7 +28,8 @@ public class DescriptorRefreshScheduler {
      * @param intervalSeconds The interval in seconds between refresh executions
      * @param description A description of what's being refreshed (for logging)
      */
-    public DescriptorRefreshScheduler(Runnable refreshTask, long intervalSeconds, String description) {
+    public DescriptorRefreshScheduler(
+            Runnable refreshTask, long intervalSeconds, String description) {
         if (refreshTask == null) {
             throw new IllegalArgumentException("refreshTask cannot be null");
         }
