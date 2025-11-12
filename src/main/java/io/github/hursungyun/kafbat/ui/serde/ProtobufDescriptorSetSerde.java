@@ -4,6 +4,7 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import io.github.hursungyun.kafbat.ui.serde.auth.MinioClientFactory;
 import io.github.hursungyun.kafbat.ui.serde.auth.S3Configuration;
+import io.github.hursungyun.kafbat.ui.serde.scheduler.DescriptorRefreshScheduler;
 import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufDeserializer;
 import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufSerializer;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSource;
@@ -25,15 +26,20 @@ public class ProtobufDescriptorSetSerde implements Serde {
 
     private static final Logger logger = LoggerFactory.getLogger(ProtobufDescriptorSetSerde.class);
 
-    private Map<String, Descriptors.FileDescriptor> fileDescriptorMap;
-    private Map<String, Descriptors.Descriptor> topicToMessageDescriptorMap = new HashMap<>();
-    private Descriptors.Descriptor defaultMessageDescriptor;
+    // Thread-safe fields accessed by both main thread and refresh thread
+    private volatile Map<String, Descriptors.FileDescriptor> fileDescriptorMap;
+    private volatile Map<String, Descriptors.Descriptor> topicToMessageDescriptorMap =
+            new HashMap<>();
+    private volatile Descriptors.Descriptor defaultMessageDescriptor;
+
+    // Configuration fields (set once during configure())
     private DescriptorSource descriptorSource;
     private S3TopicMappingSource topicMappingSource;
     private PropertyResolver serdeProperties;
     private ProtobufSerializer protobufSerializer;
     private ProtobufDeserializer protobufDeserializer;
     private boolean strictFieldValidation;
+    private DescriptorRefreshScheduler refreshScheduler;
 
     @Override
     public void configure(
@@ -46,6 +52,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
             initializeDescriptorSources(serdeProperties);
             initializeDescriptors();
             initializeSerializers();
+            startBackgroundRefresh();
         } catch (IOException | Descriptors.DescriptorValidationException e) {
             String sourceDescription =
                     descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
@@ -145,8 +152,15 @@ public class ProtobufDescriptorSetSerde implements Serde {
         Map<String, String> combinedTopicMappings = loadCombinedTopicMappings(serdeProperties);
         Map<String, Descriptors.Descriptor> allDescriptors = buildDescriptorMap();
 
-        configureDefaultMessageDescriptor(defaultMessageName, allDescriptors);
-        configureTopicSpecificMappings(combinedTopicMappings, allDescriptors);
+        // Build new state without mutating existing state (thread-safe)
+        Descriptors.Descriptor newDefaultDescriptor =
+                buildDefaultMessageDescriptor(defaultMessageName, allDescriptors);
+        Map<String, Descriptors.Descriptor> newTopicMappings =
+                buildTopicSpecificMappings(combinedTopicMappings, allDescriptors);
+
+        // Atomic assignment - volatile writes ensure visibility to other threads
+        this.defaultMessageDescriptor = newDefaultDescriptor;
+        this.topicToMessageDescriptorMap = newTopicMappings;
     }
 
     private Map<String, String> loadCombinedTopicMappings(PropertyResolver serdeProperties) {
@@ -186,20 +200,30 @@ public class ProtobufDescriptorSetSerde implements Serde {
         return allDescriptors;
     }
 
-    private void configureDefaultMessageDescriptor(
+    /**
+     * Build default message descriptor without mutating state (thread-safe).
+     *
+     * @return The default descriptor, or null if not configured
+     */
+    private Descriptors.Descriptor buildDefaultMessageDescriptor(
             Optional<String> defaultMessageName,
             Map<String, Descriptors.Descriptor> allDescriptors) {
         if (defaultMessageName.isPresent()) {
-            this.defaultMessageDescriptor =
-                    findDescriptorByName(allDescriptors, defaultMessageName.get());
-        } else {
-            this.defaultMessageDescriptor = null;
+            return findDescriptorByName(allDescriptors, defaultMessageName.get());
         }
+        return null;
     }
 
-    private void configureTopicSpecificMappings(
+    /**
+     * Build topic-specific mappings without mutating state (thread-safe).
+     *
+     * @return New map of topic to descriptor mappings
+     */
+    private Map<String, Descriptors.Descriptor> buildTopicSpecificMappings(
             Map<String, String> combinedTopicMappings,
             Map<String, Descriptors.Descriptor> allDescriptors) {
+        Map<String, Descriptors.Descriptor> newMappings = new HashMap<>();
+
         if (!combinedTopicMappings.isEmpty()) {
             for (Map.Entry<String, String> entry : combinedTopicMappings.entrySet()) {
                 String topic = entry.getKey();
@@ -207,10 +231,12 @@ public class ProtobufDescriptorSetSerde implements Serde {
                 Descriptors.Descriptor descriptor =
                         findDescriptorByName(allDescriptors, messageName);
                 if (descriptor != null) {
-                    topicToMessageDescriptorMap.put(topic, descriptor);
+                    newMappings.put(topic, descriptor);
                 }
             }
         }
+
+        return newMappings;
     }
 
     private Optional<Descriptors.Descriptor> descriptorFor(String topic, Target target) {
@@ -295,6 +321,54 @@ public class ProtobufDescriptorSetSerde implements Serde {
             throw new IllegalStateException(
                     "No message type configured for topic: " + topic + ", target: " + target);
         };
+    }
+
+    /**
+     * Start background refresh scheduler if the descriptor source or topic mapping source supports
+     * refresh. The refresh will run at the interval specified in the descriptor source
+     * configuration.
+     */
+    private void startBackgroundRefresh() {
+        // Check if either descriptor source or topic mapping source supports refresh
+        boolean descriptorSupportsRefresh =
+                descriptorSource != null && descriptorSource.supportsRefresh();
+        boolean topicMappingSupportsRefresh = topicMappingSource != null;
+
+        if (!descriptorSupportsRefresh && !topicMappingSupportsRefresh) {
+            logger.debug("Background refresh not started: no sources support refresh");
+            return;
+        }
+
+        // Get refresh interval from S3 configuration
+        Optional<Long> intervalSecondsOpt =
+                serdeProperties.getProperty(
+                        "descriptor.value.s3.refresh.interval.seconds", Long.class);
+        long intervalSeconds = intervalSecondsOpt.orElse(60L); // Default to 60 seconds
+
+        if (intervalSeconds <= 0) {
+            logger.warn(
+                    "Invalid refresh interval: {} seconds. Background refresh will not be started.",
+                    intervalSeconds);
+            return;
+        }
+
+        // Build source description for logging
+        StringBuilder sources = new StringBuilder();
+        if (descriptorSource != null) {
+            sources.append(descriptorSource.getDescription());
+        }
+        if (topicMappingSource != null) {
+            if (sources.length() > 0) {
+                sources.append(", ");
+            }
+            sources.append(topicMappingSource.getDescription());
+        }
+
+        // Create and start the refresh scheduler
+        refreshScheduler =
+                new DescriptorRefreshScheduler(
+                        this::refreshDescriptors, intervalSeconds, sources.toString());
+        refreshScheduler.start();
     }
 
     /**
