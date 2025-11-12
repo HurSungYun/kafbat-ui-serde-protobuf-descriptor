@@ -1,4 +1,4 @@
-package io.github.hursungyun.kafbat.ui.serde;
+package io.github.hursungyun.kafbat.ui.serde.scheduler;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
  * <p>This scheduler runs the provided refresh task at a fixed interval. The thread is configured as
  * a daemon thread so it won't prevent JVM shutdown.
  */
-class DescriptorRefreshScheduler {
+public class DescriptorRefreshScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(DescriptorRefreshScheduler.class);
 
@@ -28,7 +28,7 @@ class DescriptorRefreshScheduler {
      * @param intervalSeconds The interval in seconds between refresh executions
      * @param description A description of what's being refreshed (for logging)
      */
-    DescriptorRefreshScheduler(Runnable refreshTask, long intervalSeconds, String description) {
+    public DescriptorRefreshScheduler(Runnable refreshTask, long intervalSeconds, String description) {
         if (refreshTask == null) {
             throw new IllegalArgumentException("refreshTask cannot be null");
         }
@@ -49,7 +49,7 @@ class DescriptorRefreshScheduler {
      * Starts the background refresh scheduler. If a scheduler is already running, it will be
      * stopped first.
      */
-    void start() {
+    public void start() {
         // Stop existing scheduler if any
         stop();
 
@@ -86,7 +86,7 @@ class DescriptorRefreshScheduler {
      * Stops the background refresh scheduler if it's running. This method blocks until the
      * scheduler is fully shut down or timeout is reached.
      */
-    void stop() {
+    public void stop() {
         if (scheduler != null && !scheduler.isShutdown()) {
             logger.debug("Stopping background refresh scheduler");
             scheduler.shutdown();
@@ -103,7 +103,7 @@ class DescriptorRefreshScheduler {
     }
 
     /** Returns true if the scheduler is running */
-    boolean isRunning() {
+    public boolean isRunning() {
         return scheduler != null && !scheduler.isShutdown();
     }
 }

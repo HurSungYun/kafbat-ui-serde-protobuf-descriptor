@@ -4,6 +4,7 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import io.github.hursungyun.kafbat.ui.serde.auth.MinioClientFactory;
 import io.github.hursungyun.kafbat.ui.serde.auth.S3Configuration;
+import io.github.hursungyun.kafbat.ui.serde.scheduler.DescriptorRefreshScheduler;
 import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufDeserializer;
 import io.github.hursungyun.kafbat.ui.serde.serialization.ProtobufSerializer;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSource;

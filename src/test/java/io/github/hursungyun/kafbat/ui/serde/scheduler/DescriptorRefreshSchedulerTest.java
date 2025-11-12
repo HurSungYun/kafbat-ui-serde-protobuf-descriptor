@@ -1,4 +1,4 @@
-package io.github.hursungyun.kafbat.ui.serde;
+package io.github.hursungyun.kafbat.ui.serde.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
