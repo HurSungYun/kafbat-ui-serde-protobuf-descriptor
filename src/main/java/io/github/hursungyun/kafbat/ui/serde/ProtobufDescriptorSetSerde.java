@@ -34,6 +34,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
     private ProtobufSerializer protobufSerializer;
     private ProtobufDeserializer protobufDeserializer;
     private boolean strictFieldValidation;
+    private DescriptorRefreshScheduler refreshScheduler;
 
     @Override
     public void configure(
@@ -46,6 +47,7 @@ public class ProtobufDescriptorSetSerde implements Serde {
             initializeDescriptorSources(serdeProperties);
             initializeDescriptors();
             initializeSerializers();
+            startBackgroundRefresh();
         } catch (IOException | Descriptors.DescriptorValidationException e) {
             String sourceDescription =
                     descriptorSource != null ? descriptorSource.getDescription() : "unknown source";
@@ -295,6 +297,54 @@ public class ProtobufDescriptorSetSerde implements Serde {
             throw new IllegalStateException(
                     "No message type configured for topic: " + topic + ", target: " + target);
         };
+    }
+
+    /**
+     * Start background refresh scheduler if the descriptor source or topic mapping source supports
+     * refresh. The refresh will run at the interval specified in the descriptor source
+     * configuration.
+     */
+    private void startBackgroundRefresh() {
+        // Check if either descriptor source or topic mapping source supports refresh
+        boolean descriptorSupportsRefresh =
+                descriptorSource != null && descriptorSource.supportsRefresh();
+        boolean topicMappingSupportsRefresh = topicMappingSource != null;
+
+        if (!descriptorSupportsRefresh && !topicMappingSupportsRefresh) {
+            logger.debug("Background refresh not started: no sources support refresh");
+            return;
+        }
+
+        // Get refresh interval from S3 configuration
+        Optional<Long> intervalSecondsOpt =
+                serdeProperties.getProperty(
+                        "descriptor.value.s3.refresh.interval.seconds", Long.class);
+        long intervalSeconds = intervalSecondsOpt.orElse(60L); // Default to 60 seconds
+
+        if (intervalSeconds <= 0) {
+            logger.warn(
+                    "Invalid refresh interval: {} seconds. Background refresh will not be started.",
+                    intervalSeconds);
+            return;
+        }
+
+        // Build source description for logging
+        StringBuilder sources = new StringBuilder();
+        if (descriptorSource != null) {
+            sources.append(descriptorSource.getDescription());
+        }
+        if (topicMappingSource != null) {
+            if (sources.length() > 0) {
+                sources.append(", ");
+            }
+            sources.append(topicMappingSource.getDescription());
+        }
+
+        // Create and start the refresh scheduler
+        refreshScheduler =
+                new DescriptorRefreshScheduler(
+                        this::refreshDescriptors, intervalSeconds, sources.toString());
+        refreshScheduler.start();
     }
 
     /**
