@@ -305,6 +305,22 @@ public class ProtobufDescriptorSetSerde implements Serde {
     }
 
     @Override
+    public void close() {
+        logger.info("Closing ProtobufDescriptorSetSerde");
+
+        // Stop the background refresh scheduler if it's running
+        if (refreshScheduler != null) {
+            try {
+                logger.debug("Stopping descriptor refresh scheduler");
+                refreshScheduler.stop();
+                logger.info("Descriptor refresh scheduler stopped successfully");
+            } catch (Exception e) {
+                logger.error("Error stopping descriptor refresh scheduler", e);
+            }
+        }
+    }
+
+    @Override
     public Deserializer deserializer(String topic, Target target) {
         return (recordHeaders, bytes) -> {
             // Try to deserialize with specific descriptor for topic first
