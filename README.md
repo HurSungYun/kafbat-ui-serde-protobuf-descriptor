@@ -8,18 +8,18 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 
 ## Features
 
-- **🔍 Protobuf Message Visualization**: Transform binary protobuf messages into readable JSON in Kafbat UI
-- **📝 Message Production**: Create protobuf messages from JSON in Kafka UI (full serialization support)
-- **🎯 Topic-Specific Mapping**: Configure different protobuf message types for different Kafka topics
-- **📁 Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, MinIO)
+- **Protobuf Message Visualization**: Transform binary protobuf messages into readable JSON in Kafbat UI
+- **Message Production**: Create protobuf messages from JSON in Kafka UI (full serialization support)
+- **Topic-Specific Mapping**: Configure different protobuf message types for different Kafka topics
+- **Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, MinIO)
 
 
-## 📋 Requirements
+## Requirements
 
 - **Java 17+** (required by protobuf-java and Kafbat UI Serde API)
 - **Kafbat UI >= 1.0.0** (serde-api 1.0.0 support)
 
-## 🔗 Compatibility Matrix
+## Compatibility Matrix
 
 | Plugin Version | Kafbat UI Version | Serde API Version | Java Version |
 |---------------|-------------------|-------------------|--------------|
@@ -46,7 +46,7 @@ protoc --descriptor_set_out=descriptors.desc \
        your_proto_files.proto
 ```
 
-**🚨 CRITICAL: The `--include_imports` flag is MANDATORY if your .proto files have any imports or dependencies**
+**CRITICAL: The `--include_imports` flag is MANDATORY if your .proto files have any imports or dependencies**
 
 ### 2. Download the Serde
 
@@ -154,7 +154,7 @@ kafka:
 
 **Note**: Local `topic.mapping.value.local` configuration always overrides S3 topic mappings.
 
-## 🔒 Serialization Validation
+## Serialization Validation
 
 **Strict Mode (Default):** All JSON fields required, prevents data loss  
 **Lenient Mode:** Missing fields get defaults, more flexible for development
@@ -196,10 +196,10 @@ properties:
 
 ## Support
 
-- **📚 Documentation**: See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup
-- **🐛 Issues**: Report problems on [GitHub Issues](https://github.com/hursungyun/kafka-ui-protobuf-descriptor-set-serde/issues)
-- **💡 Features**: Request new features via GitHub Issues
-- **❓ Questions**: Check existing issues or create a new one
+- **Documentation**: See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup
+- **Issues**: Report problems on [GitHub Issues](https://github.com/hursungyun/kafka-ui-protobuf-descriptor-set-serde/issues)
+- **Features**: Request new features via GitHub Issues
+- **Questions**: Check existing issues or create a new one
 
 ## License
 
