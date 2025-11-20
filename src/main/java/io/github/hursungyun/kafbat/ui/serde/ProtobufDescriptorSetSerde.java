@@ -11,6 +11,7 @@ import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSource;
 import io.github.hursungyun.kafbat.ui.serde.sources.DescriptorSourceFactory;
 import io.github.hursungyun.kafbat.ui.serde.sources.S3DescriptorSource;
 import io.github.hursungyun.kafbat.ui.serde.sources.S3TopicMappingSource;
+import io.github.hursungyun.kafbat.ui.serde.util.MappingComparator;
 import io.kafbat.ui.serde.api.PropertyResolver;
 import io.kafbat.ui.serde.api.SchemaDescription;
 import io.kafbat.ui.serde.api.Serde;
@@ -438,15 +439,30 @@ public class ProtobufDescriptorSetSerde implements Serde {
                         "Attempting to refresh topic mappings from: {}",
                         topicMappingSource.getDescription());
 
+                // Capture old mappings before refresh
+                Map<String, Descriptors.Descriptor> oldMappings =
+                        new HashMap<>(topicToMessageDescriptorMap);
+
                 // Force invalidation of S3 topic mapping cache
                 topicMappingSource.invalidateCache();
 
                 // Reconfigure topic mappings (will reload from S3)
                 configureTopicMappings(serdeProperties);
                 refreshed = true;
-                logger.info(
-                        "Successfully refreshed topic mappings from: {}",
-                        topicMappingSource.getDescription());
+
+                // Compare and log mapping changes
+                MappingComparator.MappingDiff diff =
+                        MappingComparator.compare(oldMappings, topicToMessageDescriptorMap);
+                if (diff.hasChanges()) {
+                    logger.info(
+                            "Successfully refreshed topic mappings from: {}. Changes: {}",
+                            topicMappingSource.getDescription(),
+                            diff);
+                } else {
+                    logger.info(
+                            "Successfully refreshed topic mappings from: {}. No changes detected.",
+                            topicMappingSource.getDescription());
+                }
             } catch (Exception e) {
                 // Log warning but don't break existing functionality
                 logger.warn(
