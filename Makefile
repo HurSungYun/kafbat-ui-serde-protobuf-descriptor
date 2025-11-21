@@ -1,4 +1,4 @@
-.PHONY: help build test clean check jar install wrapper
+.PHONY: help build test clean jar dev quick verify format format-check proto-compile integration-test integration-topics integration-test-message integration-stop integration-clean s3-test s3-test-start s3-test-stop s3-test-clean s3-test-logs minio-logs integration-test-full
 .DEFAULT_GOAL := help
 
 help: ## Show this help message
@@ -14,17 +14,8 @@ test: ## Run tests
 clean: ## Clean build artifacts
 	./gradlew clean
 
-check: ## Run code quality checks and tests
-	./gradlew check
-
 jar: ## Build shadow jar
 	./gradlew shadowJar
-
-install: ## Install to local repository
-	./gradlew publishToMavenLocal
-
-wrapper: ## Update Gradle wrapper
-	gradle wrapper
 
 dev: ## Development build (compile + test)
 	./gradlew compileJava compileTestJava test
@@ -41,25 +32,13 @@ format: ## Apply code formatting
 format-check: ## Check code formatting
 	./gradlew spotlessCheck
 
-deps: ## Show project dependencies
-	./gradlew dependencies
-
-tasks: ## Show available Gradle tasks
-	./gradlew tasks
-
-init: ## Initialize project (setup wrapper)
-	gradle wrapper
-	chmod +x gradlew
-
-proto: ## Generate protobuf descriptor sets
-	./gradlew generateTestDescriptors
-
-proto-compile: ## Compile proto files manually
+proto-compile: ## Compile proto files and generate descriptor set
 	protoc --descriptor_set_out=src/test/resources/test_descriptors.desc \
 		--include_imports \
 		--proto_path=src/test/proto \
 		src/test/proto/user.proto \
-		src/test/proto/order.proto
+		src/test/proto/order.proto \
+		src/test/proto/nested.proto
 
 # Integration testing
 integration-test: ## Start integration test environment

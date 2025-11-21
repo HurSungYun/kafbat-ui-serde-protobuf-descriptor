@@ -1,0 +1,273 @@
+syntax = "proto3";
+
+package test;
+
+import "user.proto";
+
+option java_package = "io.github.hursungyun.kafbat.ui.serde.test";
+option java_outer_classname = "NestedProtos";
+
+// Test Case 1: Deeply nested messages (4 levels)
+message Organization {
+  string id = 1;
+  string name = 2;
+  repeated Department departments = 3;
+}
+
+message Department {
+  string id = 1;
+  string name = 2;
+  repeated Team teams = 3;
+}
+
+message Team {
+  string id = 1;
+  string name = 2;
+  repeated Employee employees = 3;
+}
+
+message Employee {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  ContactInfo contact = 4;
+}
+
+message ContactInfo {
+  string phone = 1;
+  string mobile = 2;
+  EmergencyContact emergency = 3;
+}
+
+message EmergencyContact {
+  string name = 1;
+  string relationship = 2;
+  string phone = 3;
+}
+
+// Test Case 2: Maps with nested message values
+message Catalog {
+  string id = 1;
+  map<string, Product> products = 2;
+}
+
+message Product {
+  string id = 1;
+  string name = 2;
+  double price = 3;
+  repeated string tags = 4;
+  Specifications specs = 5;
+}
+
+message Specifications {
+  map<string, string> attributes = 1;
+  Dimensions dimensions = 2;
+}
+
+message Dimensions {
+  double width = 1;
+  double height = 2;
+  double depth = 3;
+  string unit = 4;
+}
+
+// Test Case 3: oneOf with nested messages
+message Notification {
+  string id = 1;
+  int64 timestamp = 2;
+
+  oneof content {
+    EmailNotification email = 10;
+    SmsNotification sms = 11;
+    PushNotification push = 12;
+  }
+}
+
+message EmailNotification {
+  string recipient = 1;
+  string subject = 2;
+  EmailBody body = 3;
+}
+
+message EmailBody {
+  string text = 1;
+  string html = 2;
+  repeated Attachment attachments = 3;
+}
+
+message Attachment {
+  string filename = 1;
+  string mime_type = 2;
+  int64 size = 3;
+}
+
+message SmsNotification {
+  string phone_number = 1;
+  string message = 2;
+  SmsMetadata metadata = 3;
+}
+
+message SmsMetadata {
+  string sender_id = 1;
+  string country_code = 2;
+}
+
+message PushNotification {
+  string device_token = 1;
+  string title = 2;
+  string body = 3;
+  map<string, string> data = 4;
+}
+
+// Test Case 4: Repeated nested messages at multiple levels
+message ShoppingCart {
+  string cart_id = 1;
+  string user_id = 2;
+  repeated CartItem items = 3;
+  PaymentInfo payment = 4;
+}
+
+message CartItem {
+  string product_id = 1;
+  int32 quantity = 2;
+  double unit_price = 3;
+  repeated ItemOption options = 4;
+}
+
+message ItemOption {
+  string name = 1;
+  string value = 2;
+  double price_adjustment = 3;
+}
+
+message PaymentInfo {
+  string method = 1;
+  BillingAddress billing_address = 2;
+}
+
+message BillingAddress {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+  string postal_code = 4;
+  string country = 5;
+}
+
+// Test Case 5: Optional/nullable nested messages
+message BlogPost {
+  string id = 1;
+  string title = 2;
+  string content = 3;
+  Author author = 4;  // optional
+  repeated Comment comments = 5;  // can be empty
+  PublishInfo publish_info = 6;  // optional
+}
+
+message Author {
+  string id = 1;
+  string name = 2;
+  AuthorProfile profile = 3;  // optional nested
+}
+
+message AuthorProfile {
+  string bio = 1;
+  string avatar_url = 2;
+  SocialLinks social = 3;  // optional nested
+}
+
+message SocialLinks {
+  string twitter = 1;
+  string github = 2;
+  string linkedin = 3;
+}
+
+message Comment {
+  string id = 1;
+  string text = 2;
+  string commenter_name = 3;
+  int64 timestamp = 4;
+  repeated Comment replies = 5;  // nested replies (recursive)
+}
+
+message PublishInfo {
+  int64 published_at = 1;
+  int64 updated_at = 2;
+  string status = 3;
+}
+
+// Test Case 6: Complex real-world scenario - Order processing
+message OrderRecord {
+  string order_id = 1;
+  Customer customer = 2;
+  repeated OrderLine lines = 3;
+  OrderTotals totals = 4;
+  ShippingDetails shipping = 5;
+  ProcessingStatus status = 6;
+}
+
+message Customer {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  CustomerAddress address = 4;
+  LoyaltyInfo loyalty = 5;
+}
+
+message CustomerAddress {
+  string street = 1;
+  string city = 2;
+  string postal_code = 3;
+  string country = 4;
+}
+
+message LoyaltyInfo {
+  string tier = 1;
+  int32 points = 2;
+  double discount_rate = 3;
+}
+
+message OrderLine {
+  string sku = 1;
+  string description = 2;
+  int32 quantity = 3;
+  LinePrice price = 4;
+}
+
+message LinePrice {
+  double unit_price = 1;
+  double discount = 2;
+  double tax = 3;
+  double total = 4;
+}
+
+message OrderTotals {
+  double subtotal = 1;
+  double tax = 2;
+  double shipping = 3;
+  double discount = 4;
+  double total = 5;
+}
+
+message ShippingDetails {
+  string method = 1;
+  string tracking_number = 2;
+  int64 estimated_delivery = 3;
+  ShippingAddress address = 4;
+}
+
+message ShippingAddress {
+  string recipient = 1;
+  string street = 2;
+  string city = 3;
+  string postal_code = 4;
+  string country = 5;
+}
+
+enum ProcessingStatus {
+  STATUS_PENDING = 0;
+  STATUS_CONFIRMED = 1;
+  STATUS_PROCESSING = 2;
+  STATUS_SHIPPED = 3;
+  STATUS_DELIVERED = 4;
+  STATUS_CANCELLED = 5;
+}
