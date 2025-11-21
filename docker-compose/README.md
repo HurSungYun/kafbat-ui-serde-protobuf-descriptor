@@ -206,9 +206,10 @@ docker-compose --profile s3-test up -d kafka-ui-s3
 
 ## Test Data
 
-The test setup uses the following protobuf messages:
+The test setup uses comprehensive protobuf message definitions from three proto files:
 
-### User Messages
+### User Messages (`user.proto`)
+Basic message types with nested Address and UserType enum:
 ```protobuf
 message User {
   int32 id = 1;
@@ -218,9 +219,17 @@ message User {
   UserType type = 5;
   Address address = 6;
 }
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string country = 3;
+  int32 zip_code = 4;
+}
 ```
 
-### Order Messages  
+### Order Messages (`order.proto`)
+Order messages that reference User (tests cross-file imports):
 ```protobuf
 message Order {
   int64 id = 1;
@@ -231,6 +240,18 @@ message Order {
   int64 created_timestamp = 6;
 }
 ```
+
+### Nested Messages (`nested.proto`)
+Comprehensive nested message test scenarios including:
+
+- **Deep nesting (4+ levels)**: Organization → Department → Team → Employee → ContactInfo → EmergencyContact
+- **Maps with nested message values**: Catalog with map<string, Product> containing Specifications with Dimensions
+- **oneOf with nested messages**: Notification with EmailNotification, SmsNotification, or PushNotification variants
+- **Repeated nested messages**: ShoppingCart with repeated CartItem containing nested ItemOption and PaymentInfo with BillingAddress
+- **Optional/nullable nested messages**: BlogPost with optional nested Author (with AuthorProfile and SocialLinks) and recursive Comment structure
+- **Real-world complex scenarios**: OrderRecord with Customer (with CustomerAddress and LoyaltyInfo), OrderLine (with LinePrice), OrderTotals, and ShippingDetails (with ShippingAddress)
+
+These test cases validate the serde's ability to handle complex nested protobuf structures commonly found in real-world applications.
 
 ## Troubleshooting
 
@@ -295,16 +316,25 @@ The serde is configured with these environment variables:
 This points to the descriptor set file containing definitions for:
 - `user.proto`: User, Address messages and UserType enum
 - `order.proto`: Order, OrderItem messages and OrderStatus enum (imports user.proto)
+- `nested.proto`: Comprehensive nested message test scenarios (Organization, Catalog, Notification, ShoppingCart, BlogPost, OrderRecord, and their deeply nested components)
 
 ## Files Structure
 
 ```
-docker/
-├── docker-compose.yml          # Main compose file
-├── Dockerfile.producer         # Producer image definition  
-├── README.md                   # This file
+docker-compose/
+├── docker-compose.yml                  # Main compose file
+├── docker-compose-s3.yml               # S3 mode compose file
+├── docker-compose-s3-topic-mapping.yml # S3 topic mapping compose file
+├── Dockerfile.producer                 # Producer image definition
+├── README.md                           # This file
+├── start-integration-test.sh           # Start local file integration test
+├── start-s3-integration-test.sh        # Start interactive S3 test
+├── start-s3-topic-mapping-test.sh      # Start S3 topic mapping test
+├── test-s3-integration.sh              # Automated S3 test
+├── test-s3-topic-mapping-integration.sh # Automated S3 topic mapping test
 ├── descriptors/
-│   └── test_descriptors.desc   # Protobuf descriptor set
+│   └── test_descriptors.desc           # Protobuf descriptor set
 └── scripts/
-    └── produce_messages.py     # Message producer script
+    ├── produce_messages.py             # Message producer script
+    └── send_test_message.sh            # Send test message script
 ```
