@@ -20,9 +20,9 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
 /**
- * Comprehensive test suite for nested protobuf messages covering: - Deep nesting (4+ levels) -
- * Maps with nested messages - oneOf with nested messages - Repeated nested messages -
- * Optional/nullable nested messages - Complex real-world scenarios
+ * Comprehensive test suite for nested protobuf messages covering: - Deep nesting (4+ levels) - Maps
+ * with nested messages - oneOf with nested messages - Repeated nested messages - Optional/nullable
+ * nested messages - Complex real-world scenarios
  */
 class NestedMessagesTest {
 
@@ -231,8 +231,7 @@ class NestedMessagesTest {
         byte[] protobufBytes =
                 serde.serializer("test-topic", Serde.Target.VALUE).serialize(notificationJson);
 
-        NestedProtos.Notification notification =
-                NestedProtos.Notification.parseFrom(protobufBytes);
+        NestedProtos.Notification notification = NestedProtos.Notification.parseFrom(protobufBytes);
         assertThat(notification.hasEmail()).isTrue();
         assertThat(notification.hasSms()).isFalse();
         assertThat(notification.hasPush()).isFalse();
@@ -275,8 +274,7 @@ class NestedMessagesTest {
         byte[] protobufBytes =
                 serde.serializer("test-topic", Serde.Target.VALUE).serialize(notificationJson);
 
-        NestedProtos.Notification notification =
-                NestedProtos.Notification.parseFrom(protobufBytes);
+        NestedProtos.Notification notification = NestedProtos.Notification.parseFrom(protobufBytes);
         assertThat(notification.hasSms()).isTrue();
         assertThat(notification.hasEmail()).isFalse();
         assertThat(notification.getSms().getMetadata().getCountryCode()).isEqualTo("US");
@@ -287,8 +285,7 @@ class NestedMessagesTest {
 
         JsonNode jsonNode = objectMapper.readTree(result.getResult());
         assertThat(jsonNode.has("sms")).isTrue();
-        assertThat(jsonNode.get("sms").get("metadata").get("senderId").asText())
-                .isEqualTo("MyApp");
+        assertThat(jsonNode.get("sms").get("metadata").get("senderId").asText()).isEqualTo("MyApp");
     }
 
     @Test
@@ -419,12 +416,7 @@ class NestedMessagesTest {
                         .deserialize(null, protobufBytes);
 
         JsonNode jsonNode = objectMapper.readTree(result.getResult());
-        assertThat(
-                        jsonNode.get("author")
-                                .get("profile")
-                                .get("social")
-                                .get("github")
-                                .asText())
+        assertThat(jsonNode.get("author").get("profile").get("social").get("github").asText())
                 .isEqualTo("janedoe");
         assertThat(jsonNode.get("comments").get(0).get("replies").get(0).get("text").asText())
                 .isEqualTo("Thanks!");
