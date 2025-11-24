@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package test;
 
-import "user.proto";
-
 option java_package = "io.github.hursungyun.kafbat.ui.serde.test";
 option java_outer_classname = "NestedProtos";
 
