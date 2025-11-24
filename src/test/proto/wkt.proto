@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package test;
+
+import "google/protobuf/timestamp.proto";
+
+option java_package = "io.github.hursungyun.kafbat.ui.serde.test";
+option java_outer_classname = "WktProtos";
+
+// Test case for Google Well-Known Types - Timestamp
+// This tests proper serialization/deserialization of RFC 3339 timestamp strings
+message Event {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  google.protobuf.Timestamp scheduled_at = 5;
+  EventType type = 6;
+  EventStatus status = 7;
+  int64 priority = 8;
+  optional string description = 9;
+  optional string user_id = 10;
+}
+
+enum EventType {
+  EVENT_TYPE_UNKNOWN = 0;
+  EVENT_TYPE_NOTIFICATION = 1;
+  EVENT_TYPE_REMINDER = 2;
+  EVENT_TYPE_ALERT = 3;
+}
+
+enum EventStatus {
+  EVENT_STATUS_UNKNOWN = 0;
+  EVENT_STATUS_PENDING = 1;
+  EVENT_STATUS_ACTIVE = 2;
+  EVENT_STATUS_COMPLETED = 3;
+  EVENT_STATUS_CANCELLED = 4;
+}
