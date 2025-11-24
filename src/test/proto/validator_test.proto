@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package test;
+
+option java_package = "io.github.hursungyun.kafbat.ui.serde.test";
+option java_outer_classname = "ValidatorTestProtos";
+
+// Message combining BOTH synthetic oneOf (optional fields) and real oneOf
+message MixedOneOfMessage {
+  string id = 1;
+
+  // Real oneOf - business logic constraint
+  oneof payment_method {
+    CreditCard credit_card = 2;
+    BankTransfer bank_transfer = 3;
+    PayPal paypal = 4;
+  }
+
+  // Synthetic oneOf - proto3 optional fields
+  optional string description = 5;
+  optional string notes = 6;
+  optional int32 amount = 7;
+}
+
+message CreditCard {
+  string card_number = 1;
+  string cvv = 2;
+  string expiry = 3;
+}
+
+message BankTransfer {
+  string account_number = 1;
+  string routing_number = 2;
+  string bank_name = 3;
+}
+
+message PayPal {
+  string email = 1;
+  string transaction_id = 2;
+}
+
+// Message with MULTIPLE real oneOf groups
+message MultipleOneOfMessage {
+  string id = 1;
+
+  // First real oneOf
+  oneof notification_channel {
+    string email = 2;
+    string sms = 3;
+    string push = 4;
+  }
+
+  // Second real oneOf
+  oneof priority_level {
+    string low = 5;
+    string medium = 6;
+    string high = 7;
+    string urgent = 8;
+  }
+}
+
+// Message for testing nested oneOf validation
+message Container {
+  string id = 1;
+  repeated MixedOneOfMessage items = 2;  // Repeated messages with oneOf
+  MixedOneOfMessage single_item = 3;     // Singular message with oneOf
+}
+
+// Message with optional nested message containing oneOf
+message Wrapper {
+  string id = 1;
+  optional MixedOneOfMessage optional_payment = 2;  // Optional field containing oneOf message
+}

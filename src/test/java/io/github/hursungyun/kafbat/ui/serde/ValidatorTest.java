@@ -468,6 +468,376 @@ class ValidatorTest {
     }
 
     // =====================================================================
+    // ADVANCED TEST CASES
+    // =====================================================================
+
+    @Test
+    void shouldHandleMessageWithBothSyntheticAndRealOneOf() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.MixedOneOfMessage");
+
+        // MixedOneOfMessage has:
+        // - Real oneOf: payment_method (credit_card|bank_transfer|paypal)
+        // - Synthetic oneOfs: optional description, notes, amount
+
+        String json =
+                """
+                {
+                    "id": "payment-001",
+                    "creditCard": {
+                        "cardNumber": "4111111111111111",
+                        "cvv": "123",
+                        "expiry": "12/25"
+                    },
+                    "description": "Monthly subscription",
+                    "notes": null,
+                    "amount": 1999
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE).serialize(json);
+
+        io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.MixedOneOfMessage message =
+                io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.MixedOneOfMessage
+                        .parseFrom(protobufBytes);
+
+        assertThat(message.getId()).isEqualTo("payment-001");
+        assertThat(message.hasCreditCard()).isTrue();
+        assertThat(message.hasDescription()).isTrue();
+        assertThat(message.getDescription()).isEqualTo("Monthly subscription");
+        assertThat(message.hasAmount()).isTrue();
+        assertThat(message.getAmount()).isEqualTo(1999);
+    }
+
+    @Test
+    void shouldRequireRealOneOfButAllowOptionalFieldsInMixedMessage() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.MixedOneOfMessage");
+
+        // Missing real oneOf (payment_method) but optional fields omitted - should FAIL
+        String json =
+                """
+                {
+                    "id": "payment-002"
+                }
+                """;
+
+        assertThatThrownBy(
+                        () ->
+                                serde.serializer("test-topic", Serde.Target.VALUE)
+                                        .serialize(json))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize JSON to protobuf")
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("oneOf payment_method")
+                .hasMessageContaining("creditCard, bankTransfer, paypal");
+    }
+
+    @Test
+    void shouldHandleMultipleRealOneOfsInSameMessage() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.MultipleOneOfMessage");
+
+        // Message has TWO real oneOfs: notification_channel and priority_level
+        // Both must have at least one variant set
+        String json =
+                """
+                {
+                    "id": "multi-001",
+                    "email": "user@example.com",
+                    "high": "high-priority"
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE).serialize(json);
+
+        io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.MultipleOneOfMessage message =
+                io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.MultipleOneOfMessage
+                        .parseFrom(protobufBytes);
+
+        assertThat(message.getId()).isEqualTo("multi-001");
+        assertThat(message.hasEmail()).isTrue();
+        assertThat(message.hasHigh()).isTrue();
+    }
+
+    @Test
+    void shouldFailWhenFirstOneOfMissingInMultipleOneOfMessage() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.MultipleOneOfMessage");
+
+        // Missing first oneOf (notification_channel)
+        String json =
+                """
+                {
+                    "id": "multi-002",
+                    "high": "high-priority"
+                }
+                """;
+
+        assertThatThrownBy(
+                        () ->
+                                serde.serializer("test-topic", Serde.Target.VALUE)
+                                        .serialize(json))
+                .isInstanceOf(RuntimeException.class)
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("oneOf notification_channel");
+    }
+
+    @Test
+    void shouldFailWhenSecondOneOfMissingInMultipleOneOfMessage() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.MultipleOneOfMessage");
+
+        // Missing second oneOf (priority_level)
+        String json =
+                """
+                {
+                    "id": "multi-003",
+                    "email": "user@example.com"
+                }
+                """;
+
+        assertThatThrownBy(
+                        () ->
+                                serde.serializer("test-topic", Serde.Target.VALUE)
+                                        .serialize(json))
+                .isInstanceOf(RuntimeException.class)
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("oneOf priority_level");
+    }
+
+    @Test
+    void shouldValidateOneOfInNestedMessages() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.Container");
+
+        // Container has a single_item field which is MixedOneOfMessage
+        // The nested message's real oneOf must be validated
+        String json =
+                """
+                {
+                    "id": "container-001",
+                    "singleItem": {
+                        "id": "item-001",
+                        "paypal": {
+                            "email": "paypal@example.com",
+                            "transactionId": "TXN-123"
+                        },
+                        "description": "PayPal payment"
+                    },
+                    "items": []
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE).serialize(json);
+
+        io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.Container container =
+                io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.Container.parseFrom(
+                        protobufBytes);
+
+        assertThat(container.getId()).isEqualTo("container-001");
+        assertThat(container.hasSingleItem()).isTrue();
+        assertThat(container.getSingleItem().hasPaypal()).isTrue();
+    }
+
+    @Test
+    void shouldFailWhenNestedMessageMissingRequiredOneOf() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.Container");
+
+        // Nested singleItem is missing its required oneOf (payment_method)
+        String json =
+                """
+                {
+                    "id": "container-002",
+                    "singleItem": {
+                        "id": "item-002",
+                        "description": "Missing payment method"
+                    },
+                    "items": []
+                }
+                """;
+
+        assertThatThrownBy(
+                        () ->
+                                serde.serializer("test-topic", Serde.Target.VALUE)
+                                        .serialize(json))
+                .isInstanceOf(RuntimeException.class)
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("oneOf 'payment_method'");
+    }
+
+    @Test
+    void shouldValidateOneOfInRepeatedNestedMessages() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.Container");
+
+        // Container has repeated items (array of MixedOneOfMessage)
+        // Each item's real oneOf must be validated
+        String json =
+                """
+                {
+                    "id": "container-003",
+                    "items": [
+                        {
+                            "id": "item-001",
+                            "creditCard": {
+                                "cardNumber": "4111111111111111",
+                                "cvv": "123",
+                                "expiry": "12/25"
+                            }
+                        },
+                        {
+                            "id": "item-002",
+                            "bankTransfer": {
+                                "accountNumber": "123456789",
+                                "routingNumber": "987654321",
+                                "bankName": "Test Bank"
+                            }
+                        }
+                    ],
+                    "singleItem": null
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE).serialize(json);
+
+        io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.Container container =
+                io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.Container.parseFrom(
+                        protobufBytes);
+
+        assertThat(container.getId()).isEqualTo("container-003");
+        assertThat(container.getItemsCount()).isEqualTo(2);
+        assertThat(container.getItems(0).hasCreditCard()).isTrue();
+        assertThat(container.getItems(1).hasBankTransfer()).isTrue();
+    }
+
+    @Test
+    void shouldFailWhenOneItemInRepeatedArrayMissingRequiredOneOf() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.Container");
+
+        // Second item in array is missing required oneOf
+        String json =
+                """
+                {
+                    "id": "container-004",
+                    "items": [
+                        {
+                            "id": "item-001",
+                            "creditCard": {
+                                "cardNumber": "4111111111111111",
+                                "cvv": "123",
+                                "expiry": "12/25"
+                            }
+                        },
+                        {
+                            "id": "item-002",
+                            "description": "Missing payment method"
+                        }
+                    ],
+                    "singleItem": null
+                }
+                """;
+
+        assertThatThrownBy(
+                        () ->
+                                serde.serializer("test-topic", Serde.Target.VALUE)
+                                        .serialize(json))
+                .isInstanceOf(RuntimeException.class)
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("oneOf 'payment_method'");
+    }
+
+    @Test
+    void shouldHandleOptionalFieldContainingMessageWithOneOf() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.Wrapper");
+
+        // Wrapper has optional_payment field (proto3 optional)
+        // When present, the nested message's oneOf must still be validated
+        String json =
+                """
+                {
+                    "id": "wrapper-001",
+                    "optionalPayment": {
+                        "id": "payment-001",
+                        "creditCard": {
+                            "cardNumber": "4111111111111111",
+                            "cvv": "123",
+                            "expiry": "12/25"
+                        }
+                    }
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE).serialize(json);
+
+        io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.Wrapper wrapper =
+                io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.Wrapper.parseFrom(
+                        protobufBytes);
+
+        assertThat(wrapper.getId()).isEqualTo("wrapper-001");
+        assertThat(wrapper.hasOptionalPayment()).isTrue();
+        assertThat(wrapper.getOptionalPayment().hasCreditCard()).isTrue();
+    }
+
+    @Test
+    void shouldAllowOptionalFieldContainingMessageWithOneOfToBeOmitted() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.Wrapper");
+
+        // optional_payment can be completely omitted
+        String json =
+                """
+                {
+                    "id": "wrapper-002"
+                }
+                """;
+
+        byte[] protobufBytes = serde.serializer("test-topic", Serde.Target.VALUE).serialize(json);
+
+        io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.Wrapper wrapper =
+                io.github.hursungyun.kafbat.ui.serde.test.ValidatorTestProtos.Wrapper.parseFrom(
+                        protobufBytes);
+
+        assertThat(wrapper.getId()).isEqualTo("wrapper-002");
+        assertThat(wrapper.hasOptionalPayment()).isFalse();
+    }
+
+    @Test
+    void shouldFailWhenOptionalFieldPresentButNestedOneOfMissing() throws Exception {
+        Path descriptorFile = copyDescriptorSetToTemp();
+        configureSerde(descriptorFile, "test.Wrapper");
+
+        // optional_payment is present, but missing its required oneOf
+        String json =
+                """
+                {
+                    "id": "wrapper-003",
+                    "optionalPayment": {
+                        "id": "payment-002",
+                        "description": "Missing payment method"
+                    }
+                }
+                """;
+
+        assertThatThrownBy(
+                        () ->
+                                serde.serializer("test-topic", Serde.Target.VALUE)
+                                        .serialize(json))
+                .isInstanceOf(RuntimeException.class)
+                .cause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("oneOf 'payment_method'");
+    }
+
+    // =====================================================================
     // Helper Methods
     // =====================================================================
 
