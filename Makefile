@@ -39,7 +39,8 @@ proto-compile: ## Compile proto files and generate descriptor set
 		src/test/proto/user.proto \
 		src/test/proto/order.proto \
 		src/test/proto/nested.proto \
-		src/test/proto/wkt.proto
+		src/test/proto/wkt.proto \
+		src/test/proto/validator_test.proto
 
 # Integration testing
 integration-test: ## Start integration test environment
