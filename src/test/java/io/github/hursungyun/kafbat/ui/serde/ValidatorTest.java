@@ -522,10 +522,7 @@ class ValidatorTest {
                 }
                 """;
 
-        assertThatThrownBy(
-                        () ->
-                                serde.serializer("test-topic", Serde.Target.VALUE)
-                                        .serialize(json))
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE).serialize(json))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Failed to serialize JSON to protobuf")
                 .cause()
@@ -575,10 +572,7 @@ class ValidatorTest {
                 }
                 """;
 
-        assertThatThrownBy(
-                        () ->
-                                serde.serializer("test-topic", Serde.Target.VALUE)
-                                        .serialize(json))
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE).serialize(json))
                 .isInstanceOf(RuntimeException.class)
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
@@ -599,10 +593,7 @@ class ValidatorTest {
                 }
                 """;
 
-        assertThatThrownBy(
-                        () ->
-                                serde.serializer("test-topic", Serde.Target.VALUE)
-                                        .serialize(json))
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE).serialize(json))
                 .isInstanceOf(RuntimeException.class)
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
@@ -661,10 +652,7 @@ class ValidatorTest {
                 }
                 """;
 
-        assertThatThrownBy(
-                        () ->
-                                serde.serializer("test-topic", Serde.Target.VALUE)
-                                        .serialize(json))
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE).serialize(json))
                 .isInstanceOf(RuntimeException.class)
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
@@ -744,10 +732,7 @@ class ValidatorTest {
                 }
                 """;
 
-        assertThatThrownBy(
-                        () ->
-                                serde.serializer("test-topic", Serde.Target.VALUE)
-                                        .serialize(json))
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE).serialize(json))
                 .isInstanceOf(RuntimeException.class)
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
@@ -827,10 +812,7 @@ class ValidatorTest {
                 }
                 """;
 
-        assertThatThrownBy(
-                        () ->
-                                serde.serializer("test-topic", Serde.Target.VALUE)
-                                        .serialize(json))
+        assertThatThrownBy(() -> serde.serializer("test-topic", Serde.Target.VALUE).serialize(json))
                 .isInstanceOf(RuntimeException.class)
                 .cause()
                 .isInstanceOf(IllegalArgumentException.class)
