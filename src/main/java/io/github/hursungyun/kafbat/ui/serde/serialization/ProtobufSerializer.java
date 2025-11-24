@@ -30,17 +30,20 @@ public class ProtobufSerializer {
      */
     public byte[] serialize(Descriptors.Descriptor messageDescriptor, String jsonInput)
             throws Exception {
-        // Strict validation if enabled
+        // Step 1: Validate JSON structure (field presence) if strict validation is enabled
         if (strictFieldValidation) {
             validator.validateAllFieldsPresent(jsonInput, messageDescriptor);
         }
 
-        // Parse JSON input into DynamicMessage using JsonFormat.Parser
+        // Step 2: Parse JSON input into DynamicMessage using JsonFormat.Parser
         DynamicMessage.Builder messageBuilder = DynamicMessage.newBuilder(messageDescriptor);
         jsonParser.merge(jsonInput, messageBuilder);
         DynamicMessage message = messageBuilder.build();
 
-        // Always validate required fields (proto2 only)
+        // Step 3: Validate oneOf fields (always, even in lenient mode)
+        validator.validateOneOfFields(message);
+
+        // Step 4: Always validate required fields (proto2 only)
         validator.validateRequiredFields(message, messageDescriptor);
 
         // Convert to byte array

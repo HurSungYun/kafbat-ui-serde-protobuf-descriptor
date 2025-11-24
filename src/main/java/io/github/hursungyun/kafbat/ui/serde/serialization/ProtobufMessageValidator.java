@@ -17,7 +17,59 @@ public class ProtobufMessageValidator {
         this.objectMapper = new ObjectMapper();
     }
 
-    /** Validate required fields for proto2 messages */
+    /**
+     * Validate a DynamicMessage for oneOf fields only
+     *
+     * <p>This method validates only oneOf constraints using the protobuf DynamicMessage API. It
+     * should be called AFTER JSON-based field presence validation.
+     *
+     * @param message the DynamicMessage to validate
+     * @throws IllegalArgumentException if oneOf validation fails
+     */
+    public void validateOneOfFields(DynamicMessage message) {
+        Descriptors.Descriptor descriptor = message.getDescriptorForType();
+
+        // Validate oneOf fields - ensure at least one variant is set
+        for (Descriptors.OneofDescriptor oneOf : descriptor.getOneofs()) {
+            Descriptors.FieldDescriptor activeField = message.getOneofFieldDescriptor(oneOf);
+
+            if (activeField == null) {
+                // No field is set in this oneOf - collect variant names for error message
+                List<String> variantNames = new ArrayList<>();
+                for (Descriptors.FieldDescriptor field : oneOf.getFields()) {
+                    variantNames.add(field.getJsonName());
+                }
+                throw new IllegalArgumentException(
+                        "Missing required oneOf '"
+                                + oneOf.getName()
+                                + "' in message type '"
+                                + descriptor.getFullName()
+                                + "'. At least one of: "
+                                + String.join(", ", variantNames));
+            }
+        }
+
+        // Recursively validate nested messages
+        for (Descriptors.FieldDescriptor field : descriptor.getFields()) {
+            if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.MESSAGE) {
+                if (field.isRepeated()) {
+                    // Validate each element in repeated message field
+                    @SuppressWarnings("unchecked")
+                    List<DynamicMessage> messageList =
+                            (List<DynamicMessage>) message.getField(field);
+                    for (DynamicMessage nestedMessage : messageList) {
+                        validateOneOfFields(nestedMessage);
+                    }
+                } else if (message.hasField(field)) {
+                    // Validate singular nested message (only if present)
+                    validateOneOfFields((DynamicMessage) message.getField(field));
+                }
+            }
+        }
+    }
+
+    /** Validate required fields for proto2 messages - DEPRECATED, use validateMessage instead */
+    @Deprecated
     public void validateRequiredFields(
             DynamicMessage message, Descriptors.Descriptor messageDescriptor) {
         for (Descriptors.FieldDescriptor field : messageDescriptor.getFields()) {
@@ -188,13 +240,63 @@ public class ProtobufMessageValidator {
     /**
      * Validate that ALL fields in the protobuf schema are explicitly present in JSON This enforces
      * strict validation where missing fields cause serialization to fail
+     *
+     * <p>For oneOf fields: only requires that at least ONE variant is present (can be null or have
+     * a value). Other variants in the same oneOf are optional and don't need to be present.
      */
     public void validateAllFieldsPresent(String jsonInput, Descriptors.Descriptor messageDescriptor)
             throws Exception {
         JsonNode jsonNode = objectMapper.readTree(jsonInput);
         List<String> missingFields = new ArrayList<>();
 
+        // Build a set of fields that are part of a oneOf and should be skipped if another variant
+        // is present
+        List<Descriptors.FieldDescriptor> fieldsToSkip = new ArrayList<>();
+
+        // Check each oneOf - if at least one variant is present, skip validation for other variants
+        for (Descriptors.OneofDescriptor oneOf : messageDescriptor.getOneofs()) {
+            boolean hasAtLeastOneVariant = false;
+            Descriptors.FieldDescriptor presentField = null;
+
+            for (Descriptors.FieldDescriptor field : oneOf.getFields()) {
+                String jsonFieldName = getJsonFieldName(field);
+                if (jsonNode.has(jsonFieldName)) {
+                    hasAtLeastOneVariant = true;
+                    presentField = field;
+                    break;
+                }
+            }
+
+            if (hasAtLeastOneVariant) {
+                // One variant is present, so skip validation for all other variants in this oneOf
+                for (Descriptors.FieldDescriptor field : oneOf.getFields()) {
+                    if (field != presentField) {
+                        fieldsToSkip.add(field);
+                    }
+                }
+            } else {
+                // No variant is present - require at least one to be present
+                List<String> variantNames = new ArrayList<>();
+                for (Descriptors.FieldDescriptor field : oneOf.getFields()) {
+                    variantNames.add(getJsonFieldName(field));
+                }
+                missingFields.add(
+                        "oneOf "
+                                + oneOf.getName()
+                                + " (at least one of: "
+                                + String.join(", ", variantNames)
+                                + ")");
+                // Skip checking individual fields since we reported the oneOf as missing
+                fieldsToSkip.addAll(oneOf.getFields());
+            }
+        }
+
+        // Check all fields except those in fieldsToSkip
         for (Descriptors.FieldDescriptor field : messageDescriptor.getFields()) {
+            if (fieldsToSkip.contains(field)) {
+                continue;
+            }
+
             String jsonFieldName = getJsonFieldName(field);
             if (!jsonNode.has(jsonFieldName)) {
                 missingFields.add(
