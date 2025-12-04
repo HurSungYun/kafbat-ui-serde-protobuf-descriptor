@@ -37,9 +37,9 @@ check_service() {
     return 1
 }
 
-# Start the core services first (kafka, zookeeper, minio)
-echo -e "${BLUE}🐳 Starting core services (Kafka, Zookeeper, MinIO)...${NC}"
-docker-compose up -d kafka zookeeper minio
+# Start the core services first (kafka, zookeeper, rustfs)
+echo -e "${BLUE}🐳 Starting core services (Kafka, Zookeeper, RustFS)...${NC}"
+docker-compose up -d kafka zookeeper rustfs
 
 # Wait for services to be healthy
 echo -e "${BLUE}⏳ Waiting for core services to be ready...${NC}"
@@ -48,35 +48,35 @@ echo -n "Waiting for services to be healthy..."
 # Wait for all services to be healthy (docker-compose health checks)
 while ! docker-compose ps kafka | grep -q "healthy" || \
       ! docker-compose ps zookeeper | grep -q "Up" || \
-      ! docker-compose ps minio | grep -q "healthy"; do
+      ! docker-compose ps rustfs | grep -q "healthy"; do
     sleep 2
     printf "."
 done
 echo -e " ${GREEN}✓ All services ready${NC}"
 
 # Verify connectivity
-check_service "http://localhost:9000/minio/health/live" "MinIO" || exit 1
+check_service "http://localhost:9000/health" "RustFS" || exit 1
 
-# Setup MinIO with test data
-echo -e "${BLUE}📁 Setting up MinIO with test files...${NC}"
-docker-compose --profile setup run --rm minio-setup
+# Setup RustFS with test data
+echo -e "${BLUE}📁 Setting up RustFS with test files...${NC}"
+docker-compose --profile setup run --rm rustfs-setup
 
-# Verify descriptor and topic mappings files in MinIO
-echo -e "${BLUE}🔍 Verifying files in MinIO...${NC}"
-docker-compose exec -T minio mc alias set minio http://localhost:9000 minioadmin minioadmin123 > /dev/null 2>&1
-if docker-compose exec -T minio mc ls minio/protobuf-descriptors/ | grep -q test_descriptors.desc && \
-   docker-compose exec -T minio mc ls minio/protobuf-descriptors/ | grep -q topic-mappings.json; then
-    echo -e "${GREEN}✅ Both descriptor and topic mappings files successfully uploaded to MinIO${NC}"
-    echo -e "${BLUE}📋 MinIO bucket contents:${NC}"
-    docker-compose exec -T minio mc ls minio/protobuf-descriptors/
-    
+# Verify descriptor and topic mappings files in RustFS
+echo -e "${BLUE}🔍 Verifying files in RustFS...${NC}"
+docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+if docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc && \
+   docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ | grep -q topic-mappings.json; then
+    echo -e "${GREEN}✅ Both descriptor and topic mappings files successfully uploaded to RustFS${NC}"
+    echo -e "${BLUE}📋 RustFS bucket contents:${NC}"
+    docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/
+
     # Show topic mappings content
     echo -e "${BLUE}📄 Topic mappings content:${NC}"
-    docker-compose exec -T minio mc cat minio/protobuf-descriptors/topic-mappings.json | jq . || echo "   (JSON formatting failed, raw content shown above)"
+    docker-compose run --rm rustfs-setup mc cat rustfs/protobuf-descriptors/topic-mappings.json | jq . || echo "   (JSON formatting failed, raw content shown above)"
 else
-    echo -e "${RED}❌ Failed to verify files in MinIO${NC}"
-    echo -e "${BLUE}📋 Checking MinIO bucket contents:${NC}"
-    docker-compose exec -T minio mc ls minio/protobuf-descriptors/ || echo "   Bucket listing failed"
+    echo -e "${RED}❌ Failed to verify files in RustFS${NC}"
+    echo -e "${BLUE}📋 Checking RustFS bucket contents:${NC}"
+    docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
     exit 1
 fi
 
@@ -114,11 +114,11 @@ echo -e "${GREEN}🎉 S3 Topic Mapping Test Environment Started Successfully!${N
 echo
 echo -e "${BLUE}🔗 Access URLs:${NC}"
 echo "   • Kafka UI (S3 Topic Mapping): http://localhost:8082"
-echo "   • MinIO Console:               http://localhost:9001"
+echo "   • RustFS Console:              http://localhost:9001"
 echo
-echo -e "${BLUE}🔑 MinIO credentials:${NC}"
-echo "   • Username: minioadmin"
-echo "   • Password: minioadmin123"
+echo -e "${BLUE}🔑 RustFS credentials:${NC}"
+echo "   • Username: rustfsadmin"
+echo "   • Password: rustfsadmin123"
 echo
 echo -e "${BLUE}📊 Configuration Details:${NC}"
 echo "   • Descriptors loaded from:     s3://protobuf-descriptors/test_descriptors.desc"

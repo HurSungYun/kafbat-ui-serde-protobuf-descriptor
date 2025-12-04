@@ -39,25 +39,25 @@ check_service() {
 test_s3_serde() {
     echo -e "${BLUE}🔍 Testing S3 Serde Functionality${NC}"
     
-    # Check if we can access MinIO API
-    echo "1. Testing MinIO connectivity..."
-    if docker-compose exec -T minio mc --version > /dev/null 2>&1; then
-        echo -e "${GREEN}   ✅ MinIO client works${NC}"
+    # Check if we can access RustFS API
+    echo "1. Testing RustFS connectivity..."
+    if curl -s http://localhost:9000/health > /dev/null 2>&1; then
+        echo -e "${GREEN}   ✅ RustFS API works${NC}"
     else
-        echo -e "${RED}   ❌ MinIO client not accessible${NC}"
+        echo -e "${RED}   ❌ RustFS API not accessible${NC}"
         return 1
     fi
-    
-    # Configure mc client and check if descriptor file exists in MinIO
+
+    # Configure mc client and check if descriptor file exists in RustFS
     echo "2. Verifying descriptor file in S3..."
-    docker-compose exec -T minio mc alias set minio http://localhost:9000 minioadmin minioadmin123 > /dev/null 2>&1
-    if docker-compose exec -T minio mc ls minio/protobuf-descriptors/test_descriptors.desc > /dev/null 2>&1; then
+    docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    if docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/test_descriptors.desc > /dev/null 2>&1; then
         echo -e "${GREEN}   ✅ Descriptor file found in S3${NC}"
-    elif docker-compose exec -T minio mc ls minio/protobuf-descriptors/ | grep -q test_descriptors.desc 2>/dev/null; then
+    elif docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc 2>/dev/null; then
         echo -e "${GREEN}   ✅ Descriptor file found in S3${NC}"
     else
-        echo -e "${YELLOW}   ⚠️ Checking MinIO bucket contents...${NC}"
-        docker-compose exec -T minio mc ls minio/protobuf-descriptors/ || echo "   Bucket listing failed"
+        echo -e "${YELLOW}   ⚠️ Checking RustFS bucket contents...${NC}"
+        docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
         echo -e "${RED}   ❌ Descriptor file not found in S3${NC}"
         return 1
     fi
@@ -109,18 +109,18 @@ test_s3_refresh() {
     
     # Create a backup of the original descriptor
     echo "1. Creating backup of original descriptor..."
-    docker-compose exec -T minio mc alias set minio http://localhost:9000 minioadmin minioadmin123 > /dev/null 2>&1
-    docker-compose exec -T minio mc cp minio/protobuf-descriptors/test_descriptors.desc minio/protobuf-descriptors/test_descriptors_backup.desc
-    
+    docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    docker-compose run --rm rustfs-setup mc cp rustfs/protobuf-descriptors/test_descriptors.desc rustfs/protobuf-descriptors/test_descriptors_backup.desc
+
     # Get current descriptor info
     echo "2. Getting current descriptor info..."
-    original_size=$(docker-compose exec -T minio mc stat minio/protobuf-descriptors/test_descriptors.desc | grep "Size" | awk '{print $2}' || echo "unknown")
+    original_size=$(docker-compose run --rm rustfs-setup mc stat rustfs/protobuf-descriptors/test_descriptors.desc | grep "Size" | awk '{print $2}' || echo "unknown")
     echo "   Original descriptor size: $original_size"
-    
+
     # Re-upload descriptor (simulates a change)
     echo "3. Re-uploading descriptor file (simulates S3 change)..."
-    docker-compose exec -T minio mc alias set minio http://localhost:9000 minioadmin minioadmin123 > /dev/null 2>&1
-    docker-compose exec -T minio mc cp /descriptors/test_descriptors.desc minio/protobuf-descriptors/test_descriptors.desc
+    docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    docker-compose run --rm rustfs-setup mc cp /descriptors/test_descriptors.desc rustfs/protobuf-descriptors/test_descriptors.desc
     
     echo "4. Waiting for refresh interval (30 seconds)..."
     sleep 35
@@ -146,14 +146,14 @@ main() {
     echo -e "${GREEN}✅ Build completed${NC}"
     
     echo -e "${BLUE}🐳 Starting Docker services...${NC}"
-    docker-compose up -d kafka zookeeper minio
-    
+    docker-compose up -d kafka zookeeper rustfs
+
     # Wait for core services
-    check_service "http://localhost:9000/minio/health/live" "MinIO" || exit 1
-    
-    # Setup MinIO with descriptor
-    echo -e "${BLUE}📁 Setting up MinIO with test descriptor...${NC}"
-    docker-compose --profile setup run --rm minio-setup
+    check_service "http://localhost:9000/health" "RustFS" || exit 1
+
+    # Setup RustFS with descriptor
+    echo -e "${BLUE}📁 Setting up RustFS with test descriptor...${NC}"
+    docker-compose --profile setup run --rm rustfs-setup
     
     # Create topics
     echo -e "${BLUE}📋 Creating test topics...${NC}"
@@ -175,12 +175,12 @@ main() {
         echo ""
         echo -e "${BLUE}🌐 Services available:${NC}"
         echo "   • Kafka UI (S3):     http://localhost:8081"
-        echo "   • MinIO Console:     http://localhost:9001"
+        echo "   • RustFS Console:    http://localhost:9001"
         echo "   • Kafka:             localhost:9092"
         echo ""
-        echo -e "${BLUE}🔑 MinIO credentials:${NC}"
-        echo "   • Username: minioadmin"
-        echo "   • Password: minioadmin123"
+        echo -e "${BLUE}🔑 RustFS credentials:${NC}"
+        echo "   • Username: rustfsadmin"
+        echo "   • Password: rustfsadmin123"
         echo ""
         echo -e "${BLUE}📋 Manual verification steps:${NC}"
         echo "1. Open http://localhost:8081"
@@ -202,8 +202,8 @@ main() {
         echo ""
         echo -e "${YELLOW}📋 Debugging information:${NC}"
         echo ""
-        echo "MinIO logs:"
-        docker-compose logs --tail=20 minio
+        echo "RustFS logs:"
+        docker-compose logs --tail=20 rustfs
         echo ""
         echo "Kafka UI S3 logs:"
         docker-compose --profile s3-test logs --tail=20 kafka-ui-s3

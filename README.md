@@ -11,7 +11,7 @@ A custom serializer/deserializer (serde) for [Kafbat UI](https://github.com/kafb
 - **Protobuf Message Visualization**: Transform binary protobuf messages into readable JSON in Kafbat UI
 - **Message Production**: Create protobuf messages from JSON in Kafka UI (full serialization support)
 - **Topic-Specific Mapping**: Configure different protobuf message types for different Kafka topics
-- **Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, MinIO)
+- **Flexible Storage**: Load descriptors from local files or S3-compatible storage (AWS S3, RustFS, etc.)
 
 
 ## Requirements

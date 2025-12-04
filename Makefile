@@ -1,4 +1,4 @@
-.PHONY: help build test clean jar dev quick verify format format-check proto-compile integration-test integration-topics integration-test-message integration-stop integration-clean s3-test s3-test-start s3-test-stop s3-test-clean s3-test-logs minio-logs integration-test-full
+.PHONY: help build test clean jar dev quick verify format format-check proto-compile integration-test integration-topics integration-test-message integration-stop integration-clean s3-test s3-test-start s3-test-stop s3-test-clean s3-test-logs rustfs-logs integration-test-full
 .DEFAULT_GOAL := help
 
 help: ## Show this help message
@@ -59,7 +59,7 @@ integration-clean: ## Clean integration test environment
 	cd docker-compose && docker-compose down -v --remove-orphans
 
 # S3 Integration testing
-s3-test: ## Start S3 integration test with MinIO
+s3-test: ## Start S3 integration test with RustFS
 	cd docker-compose && ./test-s3-integration.sh
 
 s3-test-start: ## Start S3 test environment (interactive)
@@ -74,8 +74,8 @@ s3-test-clean: ## Clean S3 test environment completely
 s3-test-logs: ## Show S3 test logs
 	cd docker-compose && docker-compose --profile s3-test logs -f kafka-ui-s3
 
-minio-logs: ## Show MinIO logs
-	cd docker-compose && docker-compose logs -f minio
+rustfs-logs: ## Show RustFS logs
+	cd docker-compose && docker-compose logs -f rustfs
 
 integration-test-full: ## Run both local and S3 integration tests
 	$(MAKE) integration-test
