@@ -30,7 +30,7 @@ kafka:
               payment-processed: "com.company.payment.PaymentProcessedEvent"
 ```
 
-## MinIO Self-hosted Configuration
+## RustFS Self-hosted Configuration
 
 ```yaml
 kafka:
@@ -41,16 +41,16 @@ kafka:
           className: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
           filePath: /var/lib/kafka-ui/protobuf-descriptor-serde.jar
           properties:
-            # MinIO Configuration
-            protobuf.s3.endpoint: "http://minio.internal.company.com:9000"
+            # RustFS Configuration
+            protobuf.s3.endpoint: "http://rustfs.internal.company.com:9000"
             protobuf.s3.bucket: "dev-protobuf-schemas"
             protobuf.s3.object.key: "schemas/latest/descriptors.desc"
-            protobuf.s3.access.key: "dev-access-key"
-            protobuf.s3.secret.key: "dev-secret-key"
+            protobuf.s3.access.key: "rustfsadmin"
+            protobuf.s3.secret.key: "rustfsadmin123"
             protobuf.s3.secure: false  # HTTP endpoint
             protobuf.s3.refresh.interval.seconds: 60  # Check every minute in dev
-            
-            # Message Configuration  
+
+            # Message Configuration
             protobuf.message.name: "com.company.events.TestEvent"
 ```
 
@@ -78,16 +78,16 @@ aws s3 cp descriptors.desc s3://my-company-protobuf-schemas/prod/kafka-schemas/v
 aws s3api put-object-acl --bucket my-company-protobuf-schemas --key prod/kafka-schemas/v1.2.3/descriptors.desc --acl private
 ```
 
-### Using MinIO Client
+### Using MinIO Client (mc) with RustFS
 ```bash
-# Configure MinIO client
-mc alias set company-minio http://minio.internal.company.com:9000 dev-access-key dev-secret-key
+# Configure MinIO client to connect to RustFS (mc is S3-compatible)
+mc alias set company-rustfs http://rustfs.internal.company.com:9000 rustfsadmin rustfsadmin123
 
 # Upload descriptor set
-mc cp descriptors.desc company-minio/dev-protobuf-schemas/schemas/latest/descriptors.desc
+mc cp descriptors.desc company-rustfs/dev-protobuf-schemas/schemas/latest/descriptors.desc
 
 # Verify upload
-mc ls company-minio/dev-protobuf-schemas/schemas/latest/
+mc ls company-rustfs/dev-protobuf-schemas/schemas/latest/
 ```
 
 ## Benefits of S3 Storage
@@ -124,5 +124,4 @@ Enable debug logging to troubleshoot S3 connectivity:
 logging:
   level:
     io.github.hursungyun.kafbat.ui.serde: DEBUG
-    io.minio: DEBUG
 ```

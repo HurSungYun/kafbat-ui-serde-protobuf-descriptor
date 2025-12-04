@@ -85,45 +85,47 @@ services:
       retries: 5
       start_period: 30s
 
-  # MinIO S3-compatible storage for descriptor files
-  minio:
-    image: minio/minio:latest
-    container_name: minio-protobuf-test
+  # RustFS S3-compatible storage for descriptor files
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs-protobuf-test
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin123
+      RUSTFS_CONSOLE_ENABLE: "true"
     volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
+      - rustfs_data:/data
+    command: /data
+    user: "10001:10001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 10s
       timeout: 3s
       retries: 5
 
-  # MinIO setup service - creates bucket and uploads descriptor
-  minio-setup:
+  # RustFS setup service - creates bucket and uploads descriptor
+  rustfs-setup:
     image: minio/mc:latest
-    container_name: minio-setup
+    container_name: rustfs-setup
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
     volumes:
       - ./descriptors:/descriptors
       - ./topic-mappings:/topic-mappings
     entrypoint: /bin/sh
-    command: 
+    command:
       - -c
       - |
-        mc alias set minio http://minio:9000 minioadmin minioadmin123
-        mc mb minio/protobuf-descriptors || true
-        mc cp /descriptors/test_descriptors.desc minio/protobuf-descriptors/
-        mc cp /topic-mappings/topic-mappings.json minio/protobuf-descriptors/
-        mc ls minio/protobuf-descriptors/
-        echo 'MinIO setup complete:'
+        mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123
+        mc mb rustfs/protobuf-descriptors || true
+        mc cp /descriptors/test_descriptors.desc rustfs/protobuf-descriptors/
+        mc cp /topic-mappings/topic-mappings.json rustfs/protobuf-descriptors/
+        mc ls rustfs/protobuf-descriptors/
+        echo 'RustFS setup complete:'
         echo '  - Descriptor uploaded to s3://protobuf-descriptors/test_descriptors.desc'
         echo '  - Topic mappings uploaded to s3://protobuf-descriptors/topic-mappings.json'
     profiles:
@@ -153,7 +155,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_healthy
     environment:
       # Kafka cluster configuration
@@ -164,16 +166,16 @@ services:
       KAFKA_CLUSTERS_0_SERDE_0_NAME: ProtobufDescriptorSetSerdeS3
       KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-0.2.0.jar
       KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
-      
-      # S3 Configuration using MinIO
-      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_ENDPOINT: "http://minio:9000"
+
+      # S3 Configuration using RustFS
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_ENDPOINT: "http://rustfs:9000"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_DESCRIPTOR_VALUE_S3_BUCKET: "protobuf-descriptors"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_DESCRIPTOR_VALUE_S3_OBJECT_KEY: "test_descriptors.desc"
-      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_AUTH_ACCESS_KEY: "minioadmin"
-      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_AUTH_SECRET_KEY: "minioadmin123"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_AUTH_ACCESS_KEY: "rustfsadmin"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_AUTH_SECRET_KEY: "rustfsadmin123"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_SECURE: "false"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_DESCRIPTOR_VALUE_S3_REFRESH_INTERVAL_SECONDS: "30"
-      
+
       # Message type configuration (same as local file)
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_TOPIC_MAPPING_VALUE_LOCAL_USER-EVENTS: "test.User"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_TOPIC_MAPPING_VALUE_LOCAL_ORDER-EVENTS: "test.Order"
@@ -185,7 +187,7 @@ services:
 
     volumes:
       - ../build/libs:/serde
-    
+
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -204,7 +206,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_healthy
     environment:
       # Kafka cluster configuration
@@ -215,20 +217,20 @@ services:
       KAFKA_CLUSTERS_0_SERDE_0_NAME: ProtobufDescriptorSetSerdeS3TopicMapping
       KAFKA_CLUSTERS_0_SERDE_0_FILEPATH: /serde/kafbat-ui-serde-protobuf-descriptor-0.2.0.jar
       KAFKA_CLUSTERS_0_SERDE_0_CLASSNAME: io.github.hursungyun.kafbat.ui.serde.ProtobufDescriptorSetSerde
-      
-      # S3 Configuration for descriptors
-      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_ENDPOINT: "http://minio:9000"
+
+      # S3 Configuration for descriptors using RustFS
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_ENDPOINT: "http://rustfs:9000"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_DESCRIPTOR_VALUE_S3_BUCKET: "protobuf-descriptors"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_DESCRIPTOR_VALUE_S3_OBJECT_KEY: "test_descriptors.desc"
-      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_AUTH_ACCESS_KEY: "minioadmin"
-      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_AUTH_SECRET_KEY: "minioadmin123"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_AUTH_ACCESS_KEY: "rustfsadmin"
+      KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_AUTH_SECRET_KEY: "rustfsadmin123"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_S3_SECURE: "false"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_DESCRIPTOR_VALUE_S3_REFRESH_INTERVAL_SECONDS: "30"
-      
+
       # S3 Topic Mapping Configuration
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_TOPIC_MAPPING_VALUE_S3_BUCKET: "protobuf-descriptors"
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_TOPIC_MAPPING_VALUE_S3_OBJECT_KEY: "topic-mappings.json"
-      
+
       # Local Topic Mapping Override (only for payment-events, others come from S3)
       KAFKA_CLUSTERS_0_SERDE_0_PROPERTIES_TOPIC_MAPPING_VALUE_LOCAL_PAYMENT-EVENTS: "test.Order"
 
@@ -238,7 +240,7 @@ services:
 
     volumes:
       - ../build/libs:/serde
-    
+
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -249,5 +251,5 @@ services:
       - s3-topic-mapping-test
 
 volumes:
-  minio_data:
+  rustfs_data:
 

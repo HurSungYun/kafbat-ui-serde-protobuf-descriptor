@@ -224,13 +224,33 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose --version
 
+      - name: Install MinIO Client (mc)
+        run: |
+          wget https://dl.min.io/client/mc/release/linux-amd64/mc
+          chmod +x mc
+          sudo mv mc /usr/local/bin/
+          mc --version
+
       - name: Build JAR
         run: ./gradlew --no-daemon shadowJar
 
       - name: Test S3 topic mapping integration
+        env:
+          CI: true
         run: |
           cd docker-compose
-          timeout 300 ./test-s3-topic-mapping-integration.sh
+          timeout 600 ./test-s3-topic-mapping-integration.sh
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          cd docker-compose
+          echo "=== RustFS logs ==="
+          docker-compose logs rustfs || true
+          echo "=== Kafka UI S3 Topic Mapping logs ==="
+          docker-compose --profile s3-topic-mapping-test logs kafka-ui-s3-topic-mapping || true
+          echo "=== Kafka logs ==="
+          docker-compose logs kafka || true
 
       - name: Upload S3 integration test logs
         if: always()

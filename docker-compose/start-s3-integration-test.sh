@@ -20,9 +20,9 @@ else
     echo "✅ JAR file found"
 fi
 
-# Start the core services first (kafka, zookeeper, minio)
-echo "🐳 Starting core services (Kafka, Zookeeper, MinIO)..."
-docker-compose up -d kafka zookeeper minio
+# Start the core services first (kafka, zookeeper, rustfs)
+echo "🐳 Starting core services (Kafka, Zookeeper, RustFS)..."
+docker-compose up -d kafka zookeeper rustfs
 
 echo "⏳ Waiting for core services to be healthy..."
 sleep 15
@@ -34,7 +34,7 @@ elapsed=0
 while [ $elapsed -lt $timeout ]; do
     if docker-compose ps kafka | grep -q "healthy" && \
        docker-compose ps zookeeper | grep -q "healthy" && \
-       docker-compose ps minio | grep -q "healthy"; then
+       docker-compose ps rustfs | grep -q "healthy"; then
         echo "✅ Core services are healthy!"
         break
     fi
@@ -49,21 +49,21 @@ if [ $elapsed -ge $timeout ]; then
     exit 1
 fi
 
-# Setup MinIO with test data
-echo "📁 Setting up MinIO with test descriptor file..."
-docker-compose --profile setup run --rm minio-setup
+# Setup RustFS with test data
+echo "📁 Setting up RustFS with test descriptor file..."
+docker-compose --profile setup run --rm rustfs-setup
 
 # Verify descriptor was uploaded
-echo "🔍 Verifying descriptor file in MinIO..."
-docker-compose exec -T minio mc alias set minio http://localhost:9000 minioadmin minioadmin123 > /dev/null 2>&1
-if docker-compose exec -T minio mc ls minio/protobuf-descriptors/ | grep -q test_descriptors.desc; then
-    echo "✅ Descriptor file successfully uploaded to MinIO"
-    echo "📋 MinIO bucket contents:"
-    docker-compose exec -T minio mc ls minio/protobuf-descriptors/
+echo "🔍 Verifying descriptor file in RustFS..."
+mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+if mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc; then
+    echo "✅ Descriptor file successfully uploaded to RustFS"
+    echo "📋 RustFS bucket contents:"
+    mc ls rustfs/protobuf-descriptors/
 else
-    echo "❌ Failed to verify descriptor file in MinIO"
-    echo "📋 Checking MinIO bucket contents:"
-    docker-compose exec -T minio mc ls minio/protobuf-descriptors/ || echo "   Bucket listing failed"
+    echo "❌ Failed to verify descriptor file in RustFS"
+    echo "📋 Checking RustFS bucket contents:"
+    mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
     exit 1
 fi
 
@@ -109,12 +109,12 @@ echo ""
 echo "🌐 Services available:"
 echo "   • Kafka UI (S3):     http://localhost:8081"
 echo "   • Kafka UI (Local):  http://localhost:8080 (if started separately)"
-echo "   • MinIO Console:     http://localhost:9001"
+echo "   • RustFS Console:    http://localhost:9001"
 echo "   • Kafka:             localhost:9092"
 echo ""
-echo "🔑 MinIO credentials:"
-echo "   • Username: minioadmin"
-echo "   • Password: minioadmin123"
+echo "🔑 RustFS credentials:"
+echo "   • Username: rustfsadmin"
+echo "   • Password: rustfsadmin123"
 echo ""
 echo "📋 Test verification steps:"
 echo "1. Open http://localhost:8081 in your browser"
@@ -125,7 +125,7 @@ echo "5. Check that the serde shows 'S3: s3://protobuf-descriptors/test_descript
 echo ""
 echo "🔄 To test S3 refresh functionality:"
 echo "1. Update the descriptor file in build/resources/test/"
-echo "2. Upload it to MinIO: docker-compose exec minio mc cp /descriptors/test_descriptors.desc minio/protobuf-descriptors/"
+echo "2. Upload it to RustFS: mc cp ./descriptors/test_descriptors.desc rustfs/protobuf-descriptors/"
 echo "3. Wait 30 seconds (refresh interval) and verify changes are reflected"
 echo ""
 echo "🛑 To stop all services:"
@@ -133,4 +133,4 @@ echo "   docker-compose --profile s3-test down"
 echo ""
 echo "📊 To view logs:"
 echo "   docker-compose --profile s3-test logs -f kafka-ui-s3"
-echo "   docker-compose logs -f minio"
+echo "   docker-compose logs -f rustfs"

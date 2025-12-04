@@ -8,7 +8,7 @@ The integration test setup includes:
 - **kafbat UI**: Web interface for Kafka management with the protobuf serde configured
 - **Apache Kafka**: Message broker for testing
 - **Zookeeper**: Kafka coordination service
-- **MinIO**: S3-compatible storage for testing S3 descriptor sources
+- **RustFS**: S3-compatible storage for testing S3 descriptor sources
 - **Message Producer**: Python service that generates sample protobuf messages
 
 ## Test Modes
@@ -17,7 +17,7 @@ The integration test setup includes:
 Tests descriptor loading from local files mounted as volumes.
 
 ### 2. S3 Mode (New)
-Tests descriptor loading from MinIO S3-compatible storage with caching and refresh functionality.
+Tests descriptor loading from RustFS S3-compatible storage with caching and refresh functionality.
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ Tests descriptor loading from MinIO S3-compatible storage with caching and refre
 3. **Access kafbat UI**:
    Open http://localhost:8080 in your browser
 
-### S3 Mode (MinIO)
+### S3 Mode (RustFS)
 
 1. **Run S3 integration test**:
    ```bash
@@ -55,9 +55,9 @@ Tests descriptor loading from MinIO S3-compatible storage with caching and refre
 
 2. **Access services**:
    - Kafka UI (S3): http://localhost:8081
-   - MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
+   - RustFS Console: http://localhost:9001 (rustfsadmin/rustfsadmin123)
 
-### S3 Topic Mapping Mode (MinIO)
+### S3 Topic Mapping Mode (RustFS)
 
 Tests S3-based topic mapping configuration with local property overrides.
 
@@ -73,7 +73,7 @@ Tests S3-based topic mapping configuration with local property overrides.
 
 2. **Access services**:
    - Kafka UI (S3 Topic Mapping): http://localhost:8082
-   - MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
+   - RustFS Console: http://localhost:9001 (rustfsadmin/rustfsadmin123)
 
 3. **Configuration tested**:
    - **S3 topic mappings**: Loaded from `s3://protobuf-descriptors/topic-mappings.json`
@@ -121,10 +121,10 @@ make s3-test-stop
   - Refresh interval: 30 seconds
 - **Profile**: `s3-test`
 
-### MinIO (Ports 9000, 9001)
-- **Image**: `minio/minio:latest`
+### RustFS (Ports 9000, 9001)
+- **Image**: `rustfs/rustfs:latest`
 - **Purpose**: S3-compatible storage for descriptor files
-- **Console**: http://localhost:9001 (minioadmin/minioadmin123)
+- **Console**: http://localhost:9001 (rustfsadmin/rustfsadmin123)
 - **Bucket**: `protobuf-descriptors`
 
 ### Kafka (Port 9092)
@@ -135,8 +135,8 @@ make s3-test-stop
 - **Image**: `confluentinc/cp-zookeeper:7.4.0` 
 - **Purpose**: Kafka coordination and metadata storage
 
-### MinIO Setup Service
-- **Image**: `minio/mc:latest`
+### RustFS Setup Service
+- **Image**: `minio/mc:latest` (S3-compatible CLI tool)
 - **Purpose**: Creates bucket and uploads test descriptor
 - **Profile**: `setup`
 
@@ -170,7 +170,7 @@ make s3-test
 ```
 This runs a comprehensive automated test that:
 - Builds the project
-- Starts MinIO and Kafka
+- Starts RustFS and Kafka
 - Uploads descriptor to S3
 - Starts Kafka UI with S3 configuration
 - Validates S3 connectivity and descriptor loading
@@ -184,7 +184,7 @@ make s3-test-start
 This starts the services and provides manual testing instructions.
 
 #### S3 Refresh Test
-1. Access MinIO console: http://localhost:9001 (minioadmin/minioadmin123)
+1. Access RustFS console: http://localhost:9001 (rustfsadmin/rustfsadmin123)
 2. Navigate to `protobuf-descriptors` bucket
 3. Upload a modified descriptor file
 4. Wait 30 seconds (refresh interval)

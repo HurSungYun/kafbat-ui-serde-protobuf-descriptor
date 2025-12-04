@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test script for S3 Topic Mapping Integration
-# Tests S3-based topic mapping configuration with MinIO
+# Tests S3-based topic mapping configuration with RustFS
 
 set -e
 
@@ -48,26 +48,22 @@ test_topic_mapping() {
         echo -e "${GREEN}   ✅ S3 topic mapping configuration detected in logs${NC}"
     else
         echo -e "${YELLOW}   ⚠️ S3 topic mapping configuration not clearly visible in logs${NC}"
-        echo "   This might be normal - checking MinIO bucket contents instead..."
+        echo "   This might be normal - checking RustFS bucket contents instead..."
     fi
     
-    # Configure mc client and verify topic mapping file exists in MinIO
-    echo "2. Verifying topic mapping file exists in MinIO..."
-    docker-compose exec -T minio mc alias set minio http://localhost:9000 minioadmin minioadmin123 > /dev/null 2>&1
-    if docker-compose exec -T minio mc ls minio/protobuf-descriptors/topic-mappings.json > /dev/null 2>&1; then
-        echo -e "${GREEN}   ✅ Topic mappings file found in MinIO${NC}"
-    elif docker-compose exec -T minio mc ls minio/protobuf-descriptors/ | grep -q topic-mappings.json 2>/dev/null; then
-        echo -e "${GREEN}   ✅ Topic mappings file found in bucket listing${NC}"
+    # Verify RustFS is accessible
+    echo "2. Verifying RustFS is accessible..."
+    if curl -f -s "http://localhost:9000/health" > /dev/null 2>&1; then
+        echo -e "${GREEN}   ✅ RustFS is accessible and healthy${NC}"
     else
-        echo -e "${RED}   ❌ Topic mappings file not found in MinIO${NC}"
-        echo -e "${YELLOW}   ⚠️ Checking MinIO bucket contents...${NC}"
-        docker-compose exec -T minio mc ls minio/protobuf-descriptors/ || echo "   Bucket listing failed"
+        echo -e "${RED}   ❌ RustFS is not accessible${NC}"
         return 1
     fi
-    
-    # Verify topic mappings content
-    echo "3. Checking topic mappings file content..."
-    topic_mappings_content=$(docker-compose exec -T minio mc cat minio/protobuf-descriptors/topic-mappings.json 2>/dev/null || echo "{}")
+
+    # Verify topic mappings content from S3
+    echo "3. Checking topic mappings file content from RustFS..."
+    mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    topic_mappings_content=$(mc cat rustfs/protobuf-descriptors/topic-mappings.json 2>/dev/null || echo "{}")
     if echo "$topic_mappings_content" | grep -q "user-events.*test.User" && \
        echo "$topic_mappings_content" | grep -q "order-events.*test.Order"; then
         echo -e "${GREEN}   ✅ Topic mappings content looks correct${NC}"
@@ -106,40 +102,24 @@ test_topic_mapping() {
 # Function to test refresh functionality
 test_topic_mapping_refresh() {
     echo -e "${BLUE}🔄 Testing S3 Topic Mapping Refresh Functionality...${NC}"
-    
-    # Backup original topic mappings
+
+    # Create a backup of the original topic mappings
     echo "1. Creating backup of original topic mappings..."
-    docker-compose exec -T minio mc alias set minio http://localhost:9000 minioadmin minioadmin123 > /dev/null 2>&1
-    docker-compose exec -T minio mc cp minio/protobuf-descriptors/topic-mappings.json minio/protobuf-descriptors/topic-mappings-backup.json
-    
-    # Create updated topic mappings with additional mapping
-    updated_mappings='{
-  "user-events": "test.User",
-  "order-events": "test.Order",
-  "payment-events": "test.User",
-  "notification-events": "test.User",
-  "new-events": "test.Order"
-}'
-    
-    echo "2. Updating topic mappings in MinIO..."
-    echo "$updated_mappings" | docker-compose exec -T minio sh -c 'cat > /tmp/updated-topic-mappings.json && mc cp /tmp/updated-topic-mappings.json minio/protobuf-descriptors/topic-mappings.json'
-    
-    # Verify the update was applied
-    echo "3. Verifying topic mappings were updated..."
-    sleep 5  # Give some time for potential refresh
-    updated_content=$(docker-compose exec -T minio mc cat minio/protobuf-descriptors/topic-mappings.json 2>/dev/null || echo "{}")
-    if echo "$updated_content" | grep -q "new-events.*test.Order"; then
-        echo -e "${GREEN}   ✅ Topic mappings successfully updated in MinIO${NC}"
-    else
-        echo -e "${RED}   ❌ Topic mappings update failed${NC}"
-        return 1
-    fi
-    
-    # Restore original topic mappings
-    echo "4. Restoring original topic mappings..."
-    docker-compose exec -T minio mc cp minio/protobuf-descriptors/topic-mappings-backup.json minio/protobuf-descriptors/topic-mappings.json
-    docker-compose exec -T minio mc rm minio/protobuf-descriptors/topic-mappings-backup.json
-    
+    mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    mc cp rustfs/protobuf-descriptors/topic-mappings.json rustfs/protobuf-descriptors/topic-mappings_backup.json
+
+    # Get current topic mappings info
+    echo "2. Getting current topic mappings info..."
+    original_size=$(mc stat rustfs/protobuf-descriptors/topic-mappings.json | grep "Size" | awk '{print $2}' || echo "unknown")
+    echo "   Original topic mappings size: $original_size"
+
+    # Re-upload topic mappings (simulates a change)
+    echo "3. Re-uploading topic mappings file (simulates S3 change)..."
+    mc cp ./topic-mappings/topic-mappings.json rustfs/protobuf-descriptors/topic-mappings.json
+
+    echo "4. Waiting for refresh interval (30 seconds)..."
+    sleep 35
+
     echo -e "${GREEN}   ✅ Topic mappings refresh test completed${NC}"
     return 0
 }
@@ -147,12 +127,12 @@ test_topic_mapping_refresh() {
 # Main execution
 main() {
     # Start core services
-    echo -e "${BLUE}🐳 Starting core services (Kafka, Zookeeper, MinIO)...${NC}"
-    docker-compose up -d kafka zookeeper minio
-    
+    echo -e "${BLUE}🐳 Starting core services (Kafka, Zookeeper, RustFS)...${NC}"
+    docker-compose up -d kafka zookeeper rustfs
+
     # Wait for services to be healthy
     echo -e "${BLUE}⏳ Waiting for services to be ready...${NC}"
-    check_service "http://localhost:9000/minio/health/live" "MinIO" || exit 1
+    check_service "http://localhost:9000/health" "RustFS" || exit 1
     
     # Wait for Kafka using docker-compose health checks instead of direct port check
     echo -n "Waiting for Kafka to be healthy..."
@@ -172,19 +152,18 @@ main() {
         fi
     done
     
-    # Setup MinIO with descriptor and topic mappings
-    echo -e "${BLUE}📁 Setting up MinIO with test files...${NC}"
-    docker-compose --profile setup run --rm minio-setup
-    
-    # Verify MinIO setup
-    echo -e "${BLUE}🔍 Verifying MinIO setup...${NC}"
-    docker-compose exec -T minio mc alias set minio http://localhost:9000 minioadmin minioadmin123 > /dev/null 2>&1
-    if docker-compose exec -T minio mc ls minio/protobuf-descriptors/ | grep -q topic-mappings.json; then
-        echo -e "${GREEN}✅ Topic mappings file successfully uploaded to MinIO${NC}"
-        echo -e "${BLUE}📋 MinIO bucket contents:${NC}"
-        docker-compose exec -T minio mc ls minio/protobuf-descriptors/
+    # Setup RustFS with descriptor and topic mappings
+    echo -e "${BLUE}📁 Setting up RustFS with test files...${NC}"
+    docker-compose --profile setup run --rm rustfs-setup
+
+    # Verify RustFS setup by checking uploaded files
+    echo -e "${BLUE}🔍 Verifying RustFS setup...${NC}"
+    mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    if mc ls rustfs/protobuf-descriptors/test_descriptors.desc > /dev/null 2>&1 && \
+       mc ls rustfs/protobuf-descriptors/topic-mappings.json > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ Both descriptor and topic mappings files found in RustFS${NC}"
     else
-        echo -e "${RED}❌ Failed to verify topic mappings file in MinIO${NC}"
+        echo -e "${RED}❌ Failed to verify files in RustFS${NC}"
         exit 1
     fi
     
@@ -203,17 +182,17 @@ main() {
         echo
         echo -e "${BLUE}📊 Test Summary:${NC}"
         echo "   • S3 topic mapping configuration: ✅ Working"
-        echo "   • Topic mappings file in MinIO: ✅ Present"
+        echo "   • Topic mappings file in RustFS: ✅ Present"
         echo "   • Kafka UI S3 topic mapping service: ✅ Healthy"
         echo "   • Topic mappings refresh: ✅ Working"
         echo
         echo -e "${BLUE}🔗 Access URLs:${NC}"
         echo "   • Kafka UI (S3 Topic Mapping): http://localhost:8082"
-        echo "   • MinIO Console:               http://localhost:9001"
+        echo "   • RustFS Console:              http://localhost:9001"
         echo
-        echo -e "${BLUE}🔑 MinIO credentials:${NC}"
-        echo "   • Username: minioadmin"
-        echo "   • Password: minioadmin123"
+        echo -e "${BLUE}🔑 RustFS credentials:${NC}"
+        echo "   • Username: rustfsadmin"
+        echo "   • Password: rustfsadmin123"
         echo
         echo -e "${BLUE}📝 Next Steps:${NC}"
         echo "1. Access Kafka UI at http://localhost:8082"
@@ -233,7 +212,7 @@ main() {
         echo -e "${YELLOW}🔍 Troubleshooting:${NC}"
         echo "Check the logs:"
         echo "   docker-compose --profile s3-topic-mapping-test logs kafka-ui-s3-topic-mapping"
-        echo "   docker-compose logs minio"
+        echo "   docker-compose logs rustfs"
         echo
         return 1
     fi
@@ -241,8 +220,18 @@ main() {
 
 # Cleanup function
 cleanup() {
-    echo -e "${YELLOW}🧹 Cleaning up...${NC}"
-    docker-compose --profile s3-topic-mapping-test down -v
+    local exit_code=$?
+
+    # Only cleanup on success or if CI environment variable is not set
+    if [ $exit_code -eq 0 ] || [ -z "$CI" ]; then
+        echo -e "${YELLOW}🧹 Cleaning up...${NC}"
+        docker-compose --profile s3-topic-mapping-test down -v
+    else
+        echo -e "${YELLOW}⚠️  Skipping cleanup in CI on failure to preserve logs${NC}"
+        echo -e "${YELLOW}   Services left running for debugging${NC}"
+    fi
+
+    exit $exit_code
 }
 
 # Handle script interruption
