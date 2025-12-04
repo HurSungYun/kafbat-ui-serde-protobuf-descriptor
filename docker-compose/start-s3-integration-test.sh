@@ -55,15 +55,15 @@ docker-compose --profile setup run --rm rustfs-setup
 
 # Verify descriptor was uploaded
 echo "🔍 Verifying descriptor file in RustFS..."
-docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
-if docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc; then
+mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+if mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc; then
     echo "✅ Descriptor file successfully uploaded to RustFS"
     echo "📋 RustFS bucket contents:"
-    docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/
+    mc ls rustfs/protobuf-descriptors/
 else
     echo "❌ Failed to verify descriptor file in RustFS"
     echo "📋 Checking RustFS bucket contents:"
-    docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
+    mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
     exit 1
 fi
 
@@ -125,7 +125,7 @@ echo "5. Check that the serde shows 'S3: s3://protobuf-descriptors/test_descript
 echo ""
 echo "🔄 To test S3 refresh functionality:"
 echo "1. Update the descriptor file in build/resources/test/"
-echo "2. Upload it to RustFS: docker-compose run --rm rustfs-setup mc cp /descriptors/test_descriptors.desc rustfs/protobuf-descriptors/"
+echo "2. Upload it to RustFS: mc cp ./descriptors/test_descriptors.desc rustfs/protobuf-descriptors/"
 echo "3. Wait 30 seconds (refresh interval) and verify changes are reflected"
 echo ""
 echo "🛑 To stop all services:"

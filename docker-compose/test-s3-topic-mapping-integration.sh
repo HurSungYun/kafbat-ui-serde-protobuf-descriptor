@@ -60,13 +60,10 @@ test_topic_mapping() {
         return 1
     fi
 
-    # Verify topic mappings content from local file (already uploaded by rustfs-setup)
-    echo "3. Checking topic mappings file content from local copy..."
-    if [ -f "./topic-mappings/topic-mappings.json" ]; then
-        topic_mappings_content=$(cat ./topic-mappings/topic-mappings.json 2>/dev/null || echo "{}")
-    else
-        topic_mappings_content="{}"
-    fi
+    # Verify topic mappings content from S3
+    echo "3. Checking topic mappings file content from RustFS..."
+    mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    topic_mappings_content=$(mc cat rustfs/protobuf-descriptors/topic-mappings.json 2>/dev/null || echo "{}")
     if echo "$topic_mappings_content" | grep -q "user-events.*test.User" && \
        echo "$topic_mappings_content" | grep -q "order-events.*test.Order"; then
         echo -e "${GREEN}   ✅ Topic mappings content looks correct${NC}"
@@ -105,16 +102,24 @@ test_topic_mapping() {
 # Function to test refresh functionality
 test_topic_mapping_refresh() {
     echo -e "${BLUE}🔄 Testing S3 Topic Mapping Refresh Functionality...${NC}"
-    
-    # Skip the actual file modification test to avoid mc binary issues
-    # The important test is that Kafka UI can load the topic mappings from RustFS
-    echo "1. Verifying RustFS refresh capability..."
-    echo -e "${YELLOW}   ℹ️  Skipping file modification test (S3 refresh tested via Kafka UI logs)${NC}"
 
-    # Check if Kafka UI successfully loaded topic mappings (visible in earlier logs)
-    echo "2. Checking if Kafka UI loaded topic mappings from S3..."
-    sleep 5  # Wait a bit for any background operations
-    
+    # Create a backup of the original topic mappings
+    echo "1. Creating backup of original topic mappings..."
+    mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    mc cp rustfs/protobuf-descriptors/topic-mappings.json rustfs/protobuf-descriptors/topic-mappings_backup.json
+
+    # Get current topic mappings info
+    echo "2. Getting current topic mappings info..."
+    original_size=$(mc stat rustfs/protobuf-descriptors/topic-mappings.json | grep "Size" | awk '{print $2}' || echo "unknown")
+    echo "   Original topic mappings size: $original_size"
+
+    # Re-upload topic mappings (simulates a change)
+    echo "3. Re-uploading topic mappings file (simulates S3 change)..."
+    mc cp ./topic-mappings/topic-mappings.json rustfs/protobuf-descriptors/topic-mappings.json
+
+    echo "4. Waiting for refresh interval (30 seconds)..."
+    sleep 35
+
     echo -e "${GREEN}   ✅ Topic mappings refresh test completed${NC}"
     return 0
 }
@@ -151,12 +156,14 @@ main() {
     echo -e "${BLUE}📁 Setting up RustFS with test files...${NC}"
     docker-compose --profile setup run --rm rustfs-setup
 
-    # Verify RustFS setup by checking health and that setup completed successfully
+    # Verify RustFS setup by checking uploaded files
     echo -e "${BLUE}🔍 Verifying RustFS setup...${NC}"
-    if check_service "http://localhost:9000/health" "RustFS Verification" 5; then
-        echo -e "${GREEN}✅ RustFS is healthy and files were uploaded successfully${NC}"
+    mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    if mc ls rustfs/protobuf-descriptors/test_descriptors.desc > /dev/null 2>&1 && \
+       mc ls rustfs/protobuf-descriptors/topic-mappings.json > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ Both descriptor and topic mappings files found in RustFS${NC}"
     else
-        echo -e "${RED}❌ RustFS verification failed${NC}"
+        echo -e "${RED}❌ Failed to verify files in RustFS${NC}"
         exit 1
     fi
     

@@ -50,14 +50,14 @@ test_s3_serde() {
 
     # Configure mc client and check if descriptor file exists in RustFS
     echo "2. Verifying descriptor file in S3..."
-    docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
-    if docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/test_descriptors.desc > /dev/null 2>&1; then
+    mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    if mc ls rustfs/protobuf-descriptors/test_descriptors.desc > /dev/null 2>&1; then
         echo -e "${GREEN}   ✅ Descriptor file found in S3${NC}"
-    elif docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc 2>/dev/null; then
+    elif mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc 2>/dev/null; then
         echo -e "${GREEN}   ✅ Descriptor file found in S3${NC}"
     else
         echo -e "${YELLOW}   ⚠️ Checking RustFS bucket contents...${NC}"
-        docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
+        mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
         echo -e "${RED}   ❌ Descriptor file not found in S3${NC}"
         return 1
     fi
@@ -106,25 +106,24 @@ test_message_processing() {
 # Function to test S3 refresh functionality
 test_s3_refresh() {
     echo -e "${BLUE}🔄 Testing S3 Refresh Functionality${NC}"
-    
+
     # Create a backup of the original descriptor
     echo "1. Creating backup of original descriptor..."
-    docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
-    docker-compose run --rm rustfs-setup mc cp rustfs/protobuf-descriptors/test_descriptors.desc rustfs/protobuf-descriptors/test_descriptors_backup.desc
+    mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+    mc cp rustfs/protobuf-descriptors/test_descriptors.desc rustfs/protobuf-descriptors/test_descriptors_backup.desc
 
     # Get current descriptor info
     echo "2. Getting current descriptor info..."
-    original_size=$(docker-compose run --rm rustfs-setup mc stat rustfs/protobuf-descriptors/test_descriptors.desc | grep "Size" | awk '{print $2}' || echo "unknown")
+    original_size=$(mc stat rustfs/protobuf-descriptors/test_descriptors.desc | grep "Size" | awk '{print $2}' || echo "unknown")
     echo "   Original descriptor size: $original_size"
 
     # Re-upload descriptor (simulates a change)
     echo "3. Re-uploading descriptor file (simulates S3 change)..."
-    docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
-    docker-compose run --rm rustfs-setup mc cp /descriptors/test_descriptors.desc rustfs/protobuf-descriptors/test_descriptors.desc
-    
+    mc cp ./descriptors/test_descriptors.desc rustfs/protobuf-descriptors/test_descriptors.desc
+
     echo "4. Waiting for refresh interval (30 seconds)..."
     sleep 35
-    
+
     echo -e "${GREEN}   ✅ S3 refresh test completed${NC}"
     return 0
 }

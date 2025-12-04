@@ -63,20 +63,20 @@ docker-compose --profile setup run --rm rustfs-setup
 
 # Verify descriptor and topic mappings files in RustFS
 echo -e "${BLUE}🔍 Verifying files in RustFS...${NC}"
-docker-compose run --rm rustfs-setup mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
-if docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc && \
-   docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ | grep -q topic-mappings.json; then
+mc alias set rustfs http://localhost:9000 rustfsadmin rustfsadmin123 > /dev/null 2>&1
+if mc ls rustfs/protobuf-descriptors/ | grep -q test_descriptors.desc && \
+   mc ls rustfs/protobuf-descriptors/ | grep -q topic-mappings.json; then
     echo -e "${GREEN}✅ Both descriptor and topic mappings files successfully uploaded to RustFS${NC}"
     echo -e "${BLUE}📋 RustFS bucket contents:${NC}"
-    docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/
+    mc ls rustfs/protobuf-descriptors/
 
     # Show topic mappings content
     echo -e "${BLUE}📄 Topic mappings content:${NC}"
-    docker-compose run --rm rustfs-setup mc cat rustfs/protobuf-descriptors/topic-mappings.json | jq . || echo "   (JSON formatting failed, raw content shown above)"
+    mc cat rustfs/protobuf-descriptors/topic-mappings.json | jq . || echo "   (JSON formatting failed, raw content shown above)"
 else
     echo -e "${RED}❌ Failed to verify files in RustFS${NC}"
     echo -e "${BLUE}📋 Checking RustFS bucket contents:${NC}"
-    docker-compose run --rm rustfs-setup mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
+    mc ls rustfs/protobuf-descriptors/ || echo "   Bucket listing failed"
     exit 1
 fi
 
